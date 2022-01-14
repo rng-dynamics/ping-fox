@@ -1,0 +1,10 @@
+[package]
+name = "kingping"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+pnet = "0.29"
+socket2 = { version = "0.4", features = ["all"] }
+dns-lookup = "1.0"
+more-asserts = "0.2"
