@@ -1,20 +1,21 @@
 extern crate kingping;
-use kingping::Ping;
+use kingping::PingService;
 
 fn main() {
-    let mut p = Ping::new();
+    let mut p = PingService::default();
     for arg in std::env::args().skip(1) {
-        p.add_host(&arg);
+        p = p.add_host(&arg);
     }
-    let results = p.run();
-    for result in results {
+    let pinger_thread = p.run_thread();
+    for result in pinger_thread.receiver.recv() {
         match result {
             Ok((hostname, ip, duration)) => {
                 println!("{} {} {:?}", hostname, ip, duration);
             }
             Err(e) => {
-                println!("ERR: {:?}", e);
+                println!("ERROR: {:?}", e);
             }
         }
     }
+    let _ = pinger_thread.shutdown();
 }

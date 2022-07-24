@@ -1,15 +1,14 @@
-use std::{error::Error, fmt, rc::Rc};
+use std::{error::Error, fmt};
 
+// If you want to derive Clone for PingError, you can, e.g., make GenericError = rc::Rc<...>
+// instead of Box<...>.
 type GenericError = Box<dyn Error + Send + Sync + 'static>;
 
-// If you want to derive Clone for PingError, you can, e.g., make GenericError = Rc<...>
-// instead of Box<...>.
 #[derive(Debug)]
 pub struct PingError {
     pub message: String,
     pub source: Option<GenericError>,
 }
-// TODO: test the error
 
 impl fmt::Display for PingError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
@@ -26,8 +25,7 @@ impl fmt::Display for PingError {
 
 impl Error for PingError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
-        let e: Option<&(dyn Error + 'static)>;
-        e = match &self.source {
+        let e: Option<&(dyn Error + 'static)> = match &self.source {
             None => None,
             Some(s) => Some(&**s),
         };
@@ -35,11 +33,39 @@ impl Error for PingError {
     }
 }
 
+// TODO: do we need these From<> implementations?
 impl From<std::io::Error> for PingError {
     fn from(error: std::io::Error) -> PingError {
         PingError {
             message: "".to_owned(),
             source: Some(Box::new(error)),
         }
+    }
+}
+
+impl<T> From<std::sync::mpsc::SendError<T>> for PingError
+where
+    T: Send + Sync + 'static,
+{
+    fn from(error: std::sync::mpsc::SendError<T>) -> PingError {
+        PingError {
+            message: "".to_owned(),
+            source: Some(Box::new(error)),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io::ErrorKind;
+
+    use super::*;
+
+    #[test]
+    fn test_ping_error_from_std_io_error() {
+        let std_io_error = std::io::Error::from(ErrorKind::Other);
+        let ping_error: PingError = PingError::from(std_io_error);
+        let source = ping_error.source().expect("missing source");
+        assert_eq!("other error", source.to_string());
     }
 }
