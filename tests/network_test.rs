@@ -3,8 +3,8 @@ use std::time::Duration;
 #[macro_use]
 extern crate more_asserts;
 
-extern crate kingping;
-use kingping::*;
+extern crate ping_rs;
+use ping_rs::*;
 
 #[test]
 fn test_ping_multiple_net() {

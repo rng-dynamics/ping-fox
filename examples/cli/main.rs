@@ -1,13 +1,13 @@
-extern crate kingping;
-use kingping::PingService;
+extern crate ping_rs;
+use ping_rs::PingService;
 
 fn main() {
-    let mut p = PingService::default();
+    let mut service = PingService::default();
     for arg in std::env::args().skip(1) {
-        p = p.add_host(&arg);
+        service = service.add_host(&arg);
     }
-    let pinger_thread = p.run_thread();
-    for result in pinger_thread.receiver.recv() {
+    let pinger = service.run_thread();
+    for result in pinger.receiver.recv() {
         match result {
             Ok((hostname, ip, duration)) => {
                 println!("{} {} {:?}", hostname, ip, duration);
@@ -17,5 +17,5 @@ fn main() {
             }
         }
     }
-    let _ = pinger_thread.shutdown();
+    let _ = pinger.shutdown();
 }
