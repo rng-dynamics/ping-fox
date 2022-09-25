@@ -15,8 +15,8 @@ pub(crate) struct PingReceiver {
     socket: Arc<socket2::Socket>,
     sender_receiver_tx: mpsc::SyncSender<PSetDataT>,
     sender_receiver_rx: Option<mpsc::Receiver<PSetDataT>>,
-    shutdown: mpsc::Sender<()>,
-    is_shutdown: Option<mpsc::Receiver<()>>,
+    halt_tx: mpsc::Sender<()>,
+    halt_rx: Option<mpsc::Receiver<()>>,
     thread_handle: Option<JoinHandle<()>>,
 }
 
@@ -24,13 +24,13 @@ pub(crate) struct PingReceiver {
 pub(crate) enum State {
     New,
     Receiving,
-    Terminated,
+    Halted,
 }
 
 impl Drop for PingReceiver {
     fn drop(&mut self) {
         if self.thread_handle.is_some() {
-            panic!("you must call shutdown on PingerReceiver to clean it up");
+            panic!("you must call halt on PingerReceiver to clean it up");
         }
     }
 }
@@ -42,15 +42,15 @@ impl PingReceiver {
         sender_receiver_tx: mpsc::SyncSender<PSetDataT>,
         sender_receiver_rx: mpsc::Receiver<PSetDataT>,
     ) -> Self {
-        let (shutdown, is_shutdown) = mpsc::channel();
+        let (halt_tx, halt_rx) = mpsc::channel();
         PingReceiver {
             states: vec![State::New],
             icmpv4,
             socket,
             sender_receiver_tx,
             sender_receiver_rx: Some(sender_receiver_rx),
-            shutdown,
-            is_shutdown: Some(is_shutdown),
+            halt_tx,
+            halt_rx: Some(halt_rx),
             thread_handle: None,
         }
     }
@@ -59,17 +59,17 @@ impl PingReceiver {
         self.states.clone()
     }
 
-    pub(crate) fn shutdown(mut self) -> std::thread::Result<()> {
-        if *self.states.last().expect("logic error") == State::Terminated {
+    pub(crate) fn halt(mut self) -> std::thread::Result<()> {
+        if *self.states.last().expect("logic error") == State::Halted {
             return Ok(());
         }
 
-        let _ = self.shutdown.send(());
+        let _ = self.halt_tx.send(());
         let join_result = match self.thread_handle.take() {
             Some(handle) => handle.join(),
             None => Ok(()),
         };
-        self.states.push(State::Terminated);
+        self.states.push(State::Halted);
         join_result
     }
 
@@ -87,10 +87,10 @@ impl PingReceiver {
         socket
             .set_read_timeout(Some(Duration::from_millis(100)))
             .unwrap();
-        let is_shutdown = self.is_shutdown.take().expect("logic error");
+        let halt_rx = self.halt_rx.take().expect("logic error");
         self.thread_handle = Some(std::thread::spawn(move || {
             'outer: loop {
-                match is_shutdown.try_recv() {
+                match halt_rx.try_recv() {
                     Ok(_) | Err(std::sync::mpsc::TryRecvError::Disconnected) => break 'outer,
                     Err(std::sync::mpsc::TryRecvError::Empty) => {}
                 }

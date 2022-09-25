@@ -12,8 +12,8 @@ pub(crate) struct PingSender {
     icmpv4: Arc<IcmpV4>,
     socket: Arc<socket2::Socket>,
     sender_receiver_tx: mpsc::SyncSender<PSetDataT>,
-    shutdown: mpsc::Sender<()>,
-    is_shutdown: Option<mpsc::Receiver<()>>,
+    halt_tx: mpsc::Sender<()>,
+    halt_rx: Option<mpsc::Receiver<()>>,
     thread_handle: Option<JoinHandle<()>>,
 }
 
@@ -21,13 +21,13 @@ pub(crate) struct PingSender {
 pub(crate) enum State {
     New,
     Sending,
-    Terminated,
+    Halted,
 }
 
 impl Drop for PingSender {
     fn drop(&mut self) {
         if self.thread_handle.is_some() {
-            panic!("you must call shutdown on PingSender to clean it up");
+            panic!("you must call halt on PingSender to clean it up");
         }
     }
 }
@@ -38,14 +38,14 @@ impl PingSender {
         socket: Arc<socket2::Socket>,
         sender_receiver_tx: mpsc::SyncSender<PSetDataT>,
     ) -> Self {
-        let (shutdown, is_shutdown) = mpsc::channel();
+        let (halt_tx, halt_rx) = mpsc::channel();
         PingSender {
             states: vec![State::New],
             icmpv4,
             socket,
             sender_receiver_tx,
-            shutdown,
-            is_shutdown: Some(is_shutdown),
+            halt_tx,
+            halt_rx: Some(halt_rx),
             thread_handle: None,
         }
     }
@@ -54,16 +54,16 @@ impl PingSender {
         self.states.clone()
     }
 
-    pub(crate) fn shutdown(mut self) -> std::thread::Result<()> {
-        if *self.states.last().expect("logic error") == State::Terminated {
+    pub(crate) fn halt(mut self) -> std::thread::Result<()> {
+        if *self.states.last().expect("logic error") == State::Halted {
             return Ok(());
         }
-        let _ = self.shutdown.send(());
+        let _ = self.halt_tx.send(());
         let join_result = match self.thread_handle.take() {
             Some(handle) => handle.join(),
             None => Ok(()),
         };
-        self.states.push(State::Terminated);
+        self.states.push(State::Halted);
         join_result
     }
 
@@ -75,7 +75,7 @@ impl PingSender {
         let icmpv4 = self.icmpv4.clone();
         let socket = self.socket.clone();
         let sender_receiver_tx = self.sender_receiver_tx.clone();
-        let is_shutdown = self.is_shutdown.take().expect("logic error");
+        let halt_rx = self.halt_rx.take().expect("logic error");
 
         self.thread_handle = Some(std::thread::spawn(move || {
             println!("log TRACE: PingSender thread start");
@@ -95,7 +95,7 @@ impl PingSender {
                     sender_receiver_tx.send((*ip, sequence_number)).unwrap(); // TODO
                     println!("log TRACE: PingSender sent to PingReceiver");
 
-                    match is_shutdown.try_recv() {
+                    match halt_rx.try_recv() {
                         Ok(_) | Err(std::sync::mpsc::TryRecvError::Disconnected) => break 'outer,
                         Err(std::sync::mpsc::TryRecvError::Empty) => {}
                     }
