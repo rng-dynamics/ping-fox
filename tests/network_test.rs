@@ -24,7 +24,7 @@ fn test_ping_multiple_net() {
     println!("test_pint_multiplt_net: 4");
     // assert!(ping.receiver.recv().is_err());
 
-    let _ = ping.shutdown();
+    let _ = ping.halt();
 
     println!("test_pint_multiplt_net: 5");
 

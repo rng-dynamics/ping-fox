@@ -35,7 +35,7 @@ fn main() -> Result<(), std::net::AddrParseError> {
 
     println!("cli/main.rs # 2");
 
-    let _ = ping.shutdown();
+    let _ = ping.halt();
 
     Ok(())
 }

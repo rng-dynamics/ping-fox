@@ -73,9 +73,9 @@ impl Ping {
             ping_receiver,
         }
     }
-    pub fn shutdown(self) -> std::thread::Result<()> {
-        let maybe_err_1 = self.ping_sender.shutdown();
-        let maybe_err_2 = self.ping_receiver.shutdown();
+    pub fn halt(self) -> std::thread::Result<()> {
+        let maybe_err_1 = self.ping_sender.halt();
+        let maybe_err_2 = self.ping_receiver.halt();
 
         if maybe_err_1.is_err() {
             return Err(maybe_err_1.err().unwrap());
@@ -104,8 +104,8 @@ mod tests {
         // let (hostname, ip, dur) = pinger_thread.receiver.recv().unwrap().unwrap();
         // std::thread::sleep(Duration::from_secs(1));
 
-        let shutdown_result = ping.shutdown();
-        println!("pinger_trhead.shutdown() done");
-        println!("end: {:?}", shutdown_result);
+        let halt_result = ping.halt();
+        println!("pinger_trhead.halt() done");
+        println!("end: {:?}", halt_result);
     }
 }
