@@ -1,105 +1,89 @@
 #![warn(rust_2018_idioms)]
 
-#[cfg(test)]
-#[macro_use]
-extern crate more_asserts;
-
 use std::collections::VecDeque;
 use std::net::IpAddr;
+use std::net::Ipv4Addr;
+use std::sync::mpsc;
+use std::sync::Arc;
+use std::thread::JoinHandle;
 use std::time::Duration;
 
 mod icmpv4;
+mod p_set;
 mod ping_error;
-mod utils;
+mod ping_receiver;
+mod ping_sender;
 
-pub use ping_error::PingError;
+use icmpv4::*;
+use p_set::*;
+use ping_receiver::*;
+use ping_sender::*;
 
-pub type PingResult<T> = std::result::Result<T, PingError>;
+pub use ping_error::GenericError;
 
-pub struct PingEntity {
-    pub receiver: std::sync::mpsc::Receiver<PingResult<(String, IpAddr, Duration)>>,
-    thread_handle: Option<std::thread::JoinHandle<()>>,
-    thread_shutdown: std::sync::mpsc::Sender<()>,
+pub type PingResult<T> = std::result::Result<T, GenericError>;
+
+// payload size, ip address, sequence number
+type PingDataT = (usize, Ipv4Addr, u16);
+
+pub struct Config {
+    channel_size: usize,
 }
 
-impl PingEntity {
-    // Note: this function consumes self
-    pub fn shutdown(mut self) -> std::thread::Result<()> {
-        let _ = self.thread_shutdown.send(());
-        match self.thread_handle.take() {
-            Some(handle) => handle.join(),
-            None => Ok(()),
-        }
-    }
-}
-
-impl Drop for PingEntity {
-    fn drop(&mut self) {
-        if self.thread_handle.is_some() {
-            panic!("you must call `shutdown` on PingerThread to clean it up");
-        }
+impl Config {
+    pub fn new(channel_size: usize) -> Config {
+        Config { channel_size }
     }
 }
 
-pub struct PingService {
-    hostnames: VecDeque<String>,
+pub struct Ping {
+    pub receiver: std::sync::mpsc::Receiver<PingResult<PingDataT>>,
+    ping_sender: PingSender,
+    ping_receiver: PingReceiver,
 }
 
-impl Default for PingService {
-    fn default() -> Self {
-        PingService {
-            hostnames: VecDeque::<String>::new(),
+impl Ping {
+    pub fn create(config: &Config, ips: &[Ipv4Addr], count: u16) -> Self {
+        let mut deque = VecDeque::<Ipv4Addr>::new();
+        for ip in ips {
+            deque.push_back(*ip);
+        }
+        let (sender_receiver_tx, sender_receiver_rx) =
+            std::sync::mpsc::sync_channel::<PSetDataT>(config.channel_size);
+        let (tx, rx) = std::sync::mpsc::sync_channel::<PingResult<PingDataT>>(config.channel_size);
+
+        let icmpv4 = std::sync::Arc::new(IcmpV4::create());
+        let socket = Arc::new(IcmpV4::create_socket().unwrap()); // TODO(as): no unwrap
+
+        let mut ping_sender =
+            PingSender::new(icmpv4.clone(), socket.clone(), sender_receiver_tx.clone());
+        let mut ping_receiver = PingReceiver::new(
+            icmpv4.clone(),
+            socket.clone(),
+            sender_receiver_tx.clone(),
+            sender_receiver_rx,
+        );
+
+        ping_sender.start(count, deque);
+        ping_receiver.start(tx);
+
+        Self {
+            receiver: rx,
+            ping_sender,
+            ping_receiver,
         }
     }
-}
+    pub fn shutdown(self) -> std::thread::Result<()> {
+        let maybe_err_1 = self.ping_sender.shutdown();
+        let maybe_err_2 = self.ping_receiver.shutdown();
 
-impl PingService {
-    pub fn new(hostnames: VecDeque<String>) -> PingService {
-        PingService { hostnames }
-    }
-
-    pub fn add_host(mut self, host: &str) -> Self {
-        self.hostnames.push_back(host.to_owned());
-        self
-    }
-
-    pub fn run_thread(&mut self) -> PingEntity {
-        let (icmp_chan_in, icmp_chan_out) = std::sync::mpsc::channel();
-        let (shutdown_chan_in, shutdown_chan_out) = std::sync::mpsc::channel();
-
-        let hostnames = self.hostnames.clone();
-
-        let thread = std::thread::spawn(move || {
-            for hostname in hostnames {
-                let maybe_ip = utils::lookup_host_v4(&hostname);
-                let ping_result = match maybe_ip {
-                    Ok(ip) => PingService::dispatch(&ip),
-                    Err(e) => Err(e),
-                };
-                let send_result = icmp_chan_in.send(ping_result);
-                if send_result.is_err() {
-                    break;
-                }
-                match shutdown_chan_out.try_recv() {
-                    Ok(_) | Err(std::sync::mpsc::TryRecvError::Disconnected) => break,
-                    Err(std::sync::mpsc::TryRecvError::Empty) => {}
-                }
-            }
-        });
-
-        PingEntity {
-            receiver: icmp_chan_out,
-            thread_shutdown: shutdown_chan_in,
-            thread_handle: Some(thread),
+        if maybe_err_1.is_err() {
+            return Err(maybe_err_1.err().unwrap());
         }
-    }
-
-    fn dispatch(ip: &std::net::IpAddr) -> PingResult<(String, IpAddr, Duration)> {
-        match ip {
-            // TODO: sequence number?
-            IpAddr::V4(ipv4) => icmpv4::ping_one(42, ipv4),
-            IpAddr::V6(_ipv6) => unimplemented!(),
+        if maybe_err_2.is_err() {
+            return Err(maybe_err_2.err().unwrap());
         }
+        Ok(())
     }
 }
 
@@ -109,17 +93,19 @@ mod tests {
 
     #[test]
     fn test_ping_localhost() {
-        let mut ping = PingService::default();
-        ping = ping.add_host("localhost");
+        let config = Config::new(64);
 
-        let pinger_thread: PingEntity = ping.run_thread();
+        let ips = [Ipv4Addr::new(127, 0, 0, 1)];
+        let ping: Ping = Ping::create(&config, &ips, 1); // ping_rs.ping(1);
+        println!("ping.start_ping() done");
 
-        let (hostname, ip, dur) = pinger_thread.receiver.recv().unwrap().unwrap();
+        let _ = ping.receiver.recv().unwrap();
+        println!("in test received");
+        // let (hostname, ip, dur) = pinger_thread.receiver.recv().unwrap().unwrap();
+        // std::thread::sleep(Duration::from_secs(1));
 
-        let _ = pinger_thread.shutdown();
-
-        assert_eq!(hostname, "localhost");
-        assert_eq!(ip, std::net::Ipv4Addr::new(127, 0, 0, 1));
-        assert_gt!(dur, Duration::from_secs(0));
+        let shutdown_result = ping.shutdown();
+        println!("pinger_trhead.shutdown() done");
+        println!("end: {:?}", shutdown_result);
     }
 }
