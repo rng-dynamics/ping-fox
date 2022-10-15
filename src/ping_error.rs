@@ -2,11 +2,13 @@ use std::{error::Error, fmt};
 
 // If you want to derive Clone for PingError, you can, e.g., make GenericError = rc::Rc<...>
 // instead of Box<...>.
-type GenericError = Box<dyn Error + Send + Sync + 'static>;
+pub type GenericError = Box<dyn Error + Send + Sync + 'static>;
 
+// TODO: reuse standard errors whenever the semantics line up.
 #[derive(Debug)]
 pub struct PingError {
     pub message: String,
+    // TODO: don't chain errors
     pub source: Option<GenericError>,
 }
 

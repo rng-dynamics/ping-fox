@@ -1,33 +1,44 @@
-use std::time::Duration;
-
-#[macro_use]
-extern crate more_asserts;
+use std::net::Ipv4Addr;
 
 extern crate ping_rs;
 use ping_rs::*;
 
 #[test]
 fn test_ping_multiple_net() {
-    let mut pinger = PingService::default();
-    pinger = pinger.add_host("example.com");
-    pinger = pinger.add_host("iana.com");
+    // example.com 93.184.216.34
+    let ip_example_com = Ipv4Addr::new(93, 184, 216, 34);
+    // iana.com 192.0.43.8
+    let ip_iana_com = Ipv4Addr::new(192, 0, 43, 8);
 
-    let pinger_thread = pinger.run_thread();
+    let config = Config::new(64);
+    println!("test_pint_multiplt_net: 1");
+    let ping = Ping::create(&config, &[ip_example_com, ip_iana_com], 1);
 
+    std::thread::sleep(std::time::Duration::from_secs(1));
+
+    println!("test_pint_multiplt_net: 2");
     // we expect two values
-    let frst = pinger_thread.receiver.recv().unwrap();
-    let scnd = pinger_thread.receiver.recv().unwrap();
-    assert!(pinger_thread.receiver.recv().is_err());
+    let frst = ping.receiver.recv().unwrap();
+    println!("test_pint_multiplt_net: 3");
+    let scnd = ping.receiver.recv().unwrap();
+    println!("test_pint_multiplt_net: 4");
+    // assert!(ping.receiver.recv().is_err());
 
-    let _ = pinger_thread.shutdown();
+    let _ = ping.halt();
 
-    let (hostname_1, ip_1, dur_1) = frst.unwrap();
-    assert_eq!(hostname_1, "93.184.216.34");
-    assert_eq!(ip_1, std::net::Ipv4Addr::new(93, 184, 216, 34));
-    assert_gt!(dur_1, Duration::from_secs(0));
+    println!("test_pint_multiplt_net: 5");
 
-    let (hostname_2, ip_2, dur_2) = scnd.unwrap();
-    assert_eq!(hostname_2, "43-8.any.icann.org");
-    assert_eq!(ip_2, std::net::Ipv4Addr::new(192, 0, 43, 8));
-    assert_gt!(dur_2, Duration::from_secs(0));
+    let r_1 = frst.unwrap();
+    println!("ip_1 == {:?}", r_1);
+    let ip_1_match_1 = r_1.1 == ip_example_com;
+    let ip_1_match_2 = r_1.1 == ip_iana_com;
+    assert!(ip_1_match_1 || ip_1_match_2);
+    // assert_gt!(dur_1, Duration::from_secs(0));
+
+    let r_2 = scnd.unwrap();
+    println!("ip_2 == {:?}", r_2);
+    let ip_2_match_1 = r_2.1 == ip_example_com;
+    let ip_2_match_2 = r_2.1 == ip_iana_com;
+    assert!(ip_2_match_1 || ip_2_match_2);
+    // assert_gt!(dur_2, Duration::from_secs(0));
 }
