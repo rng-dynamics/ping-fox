@@ -11,10 +11,10 @@ use rand::Rng;
 use socket2::{Domain, Protocol, Type};
 use std::net::{IpAddr, Ipv4Addr};
 use std::result::Result;
-use std::time::Instant;
+use std::time::Duration;
 
-use crate::ping_error::GenericError;
-use crate::ping_error::PingError;
+use crate::GenericError;
+use crate::PingError;
 
 const PAYLOAD_SIZE: usize = 56;
 
@@ -29,6 +29,7 @@ impl IcmpV4 {
         IcmpV4 { payload }
     }
 
+    // TODO: remove that from here
     pub(crate) fn create_socket() -> Result<socket2::Socket, GenericError> {
         // TODO: make UDP vs raw socket configurable
         Ok(socket2::Socket::new(
@@ -38,15 +39,17 @@ impl IcmpV4 {
         )?)
     }
 
-    pub(crate) fn send_one_ping(
+    pub(crate) fn send_one_ping<S>(
         &self,
-        socket: &socket2::Socket,
+        socket: &S,
         ipv4: &Ipv4Addr,
         sequence_number: u16,
-    ) -> Result<(usize, IpAddr, u16), PingError> {
+    ) -> Result<(usize, IpAddr, u16), PingError>
+    where
+        S: crate::Socket,
+    {
         let ip_addr = IpAddr::V4(*ipv4);
-        let addr = socket2::SockAddr::from(std::net::SocketAddr::new(ip_addr, 0));
-        // let reverse_lookup = utils::lookup_addr(ip_addr)?;
+        let addr = std::net::SocketAddr::new(ip_addr, 0);
 
         let packet = self.new_icmpv4_packet(sequence_number).ok_or(PingError {
             message: "could not create ICMP package".to_owned(),
@@ -59,31 +62,26 @@ impl IcmpV4 {
         Ok((PAYLOAD_SIZE, ip_addr, sequence_number))
     }
 
-    pub(crate) fn try_receive(
+    pub(crate) fn try_receive<S>(
         &self,
-        socket: &socket2::Socket,
-    ) -> std::result::Result<Option<(usize, IpAddr, u16)>, GenericError> {
-        let mut buf3 = vec![std::mem::MaybeUninit::new(0u8); 256];
-        let recv_result = socket.recv_from(&mut buf3);
-        // let duration = start_time.elapsed();
-        if let Err(e) = recv_result {
-            if e.kind() == std::io::ErrorKind::WouldBlock {
-                return Ok(None);
+        socket: &S,
+    ) -> std::result::Result<Option<(usize, IpAddr, u16)>, GenericError>
+    where
+        S: crate::Socket,
+    {
+        let mut buf = [0u8; 256];
+        match socket.try_recv_from(&mut buf, &Duration::from_millis(100)) {
+            Ok(None) => Ok(None),
+            Err(e) => Err(Box::new(e)),
+            Ok(Some((n, addr))) => {
+                // let duration = start_time.elapsed();
+                let echo_reply_packet = EchoReplyPacket::new(&buf[..n])
+                    .expect("could not initialize echo reply packet");
+                let sn = echo_reply_packet.get_sequence_number();
+
+                Ok(Some((n, addr.ip(), sn)))
             }
-            return Err(Box::new(e));
         }
-        let (n, addr) = recv_result.unwrap();
-
-        let mut buf4: Vec<u8> = vec![];
-        for b in buf3.iter().take(n) {
-            buf4.push(unsafe { b.assume_init() });
-        }
-
-        let echo_reply_packet =
-            EchoReplyPacket::owned(buf4).expect("could not initialize echo reply packet");
-        let sn = echo_reply_packet.get_sequence_number();
-
-        Ok(Some((n, addr.as_socket().unwrap().ip(), sn))) // TODO: no unwrap
     }
 
     fn new_icmpv4_packet(

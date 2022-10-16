@@ -9,10 +9,10 @@ use crate::IcmpV4;
 use crate::PingDataT;
 use crate::PingResult;
 
-pub(crate) struct PingReceiver {
+pub(crate) struct PingReceiver<S> {
     states: Vec<State>,
     icmpv4: Arc<IcmpV4>,
-    socket: Arc<socket2::Socket>,
+    socket: Arc<S>,
     sender_receiver_tx: mpsc::SyncSender<PSetDataT>,
     sender_receiver_rx: Option<mpsc::Receiver<PSetDataT>>,
     halt_tx: mpsc::Sender<()>,
@@ -27,7 +27,7 @@ pub(crate) enum State {
     Halted,
 }
 
-impl Drop for PingReceiver {
+impl<S> Drop for PingReceiver<S> {
     fn drop(&mut self) {
         if self.thread_handle.is_some() {
             panic!("you must call halt on PingerReceiver to clean it up");
@@ -35,10 +35,13 @@ impl Drop for PingReceiver {
     }
 }
 
-impl PingReceiver {
+impl<S> PingReceiver<S>
+where
+    S: crate::Socket + 'static,
+{
     pub(crate) fn new(
         icmpv4: Arc<IcmpV4>,
-        socket: Arc<socket2::Socket>,
+        socket: Arc<S>,
         sender_receiver_tx: mpsc::SyncSender<PSetDataT>,
         sender_receiver_rx: mpsc::Receiver<PSetDataT>,
     ) -> Self {
@@ -84,9 +87,6 @@ impl PingReceiver {
 
         let icmpv4 = self.icmpv4.clone();
         let socket = self.socket.clone();
-        socket
-            .set_read_timeout(Some(Duration::from_millis(100)))
-            .unwrap();
         let halt_rx = self.halt_rx.take().expect("logic error");
         self.thread_handle = Some(std::thread::spawn(move || {
             'outer: loop {
@@ -95,7 +95,7 @@ impl PingReceiver {
                     Err(std::sync::mpsc::TryRecvError::Empty) => {}
                 }
 
-                let recv_echo_result = icmpv4.try_receive(&socket);
+                let recv_echo_result = icmpv4.try_receive(&*socket);
                 match recv_echo_result {
                     Ok(None) => {
                         println!("log TRACE: try_receive Ok(None)");

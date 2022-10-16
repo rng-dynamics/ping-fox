@@ -13,11 +13,14 @@ mod p_set;
 mod ping_error;
 mod ping_receiver;
 mod ping_sender;
+mod socket;
 
 use icmpv4::*;
 use p_set::*;
+use ping_error::*;
 use ping_receiver::*;
 use ping_sender::*;
+use socket::*;
 
 pub use ping_error::GenericError;
 
@@ -38,8 +41,8 @@ impl Config {
 
 pub struct Ping {
     pub receiver: std::sync::mpsc::Receiver<PingResult<PingDataT>>,
-    ping_sender: PingSender,
-    ping_receiver: PingReceiver,
+    ping_sender: PingSender<socket2::Socket>,
+    ping_receiver: PingReceiver<socket2::Socket>,
 }
 
 impl Ping {
