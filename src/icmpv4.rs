@@ -19,12 +19,12 @@ use crate::PingError;
 const PAYLOAD_SIZE: usize = 56;
 
 pub struct IcmpV4 {
-    payload: Vec<u8>,
+    payload: [u8; PAYLOAD_SIZE]
 }
 
 impl IcmpV4 {
     pub(crate) fn create() -> IcmpV4 {
-        let mut payload = vec![0u8; PAYLOAD_SIZE];
+        let mut payload = [0u8; PAYLOAD_SIZE];
         rand::thread_rng().fill(&mut payload[..]);
         IcmpV4 { payload }
     }
