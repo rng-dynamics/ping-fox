@@ -1,5 +1,6 @@
 #![warn(rust_2018_idioms)]
 
+use socket2::{Domain, Protocol, Type};
 use std::collections::VecDeque;
 use std::net::IpAddr;
 use std::net::Ipv4Addr;
@@ -39,6 +40,15 @@ impl Config {
     }
 }
 
+fn create_socket() -> Result<socket2::Socket, GenericError> {
+    // TODO: make UDP vs raw socket configurable
+    Ok(socket2::Socket::new(
+        Domain::IPV4,
+        Type::DGRAM,
+        Some(Protocol::ICMPV4),
+    )?)
+}
+
 pub struct Ping {
     pub receiver: std::sync::mpsc::Receiver<PingResult<PingDataT>>,
     ping_sender: PingSender<socket2::Socket>,
@@ -56,7 +66,7 @@ impl Ping {
         let (tx, rx) = std::sync::mpsc::sync_channel::<PingResult<PingDataT>>(config.channel_size);
 
         let icmpv4 = std::sync::Arc::new(IcmpV4::create());
-        let socket = Arc::new(IcmpV4::create_socket().unwrap()); // TODO(as): no unwrap
+        let socket = Arc::new(create_socket().unwrap()); // TODO(as): no unwrap
 
         let mut ping_sender =
             PingSender::new(icmpv4.clone(), socket.clone(), sender_receiver_tx.clone());

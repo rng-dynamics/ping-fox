@@ -8,7 +8,9 @@ use pnet_packet::icmp::{
 };
 use pnet_packet::Packet;
 use rand::Rng;
-use socket2::{Domain, Protocol, Type};
+use std::io;
+use std::net::SocketAddr;
+use std::net::SocketAddrV4;
 use std::net::{IpAddr, Ipv4Addr};
 use std::result::Result;
 use std::time::Duration;
@@ -19,7 +21,7 @@ use crate::PingError;
 const PAYLOAD_SIZE: usize = 56;
 
 pub struct IcmpV4 {
-    payload: [u8; PAYLOAD_SIZE]
+    payload: [u8; PAYLOAD_SIZE],
 }
 
 impl IcmpV4 {
@@ -27,16 +29,6 @@ impl IcmpV4 {
         let mut payload = [0u8; PAYLOAD_SIZE];
         rand::thread_rng().fill(&mut payload[..]);
         IcmpV4 { payload }
-    }
-
-    // TODO: remove that from here
-    pub(crate) fn create_socket() -> Result<socket2::Socket, GenericError> {
-        // TODO: make UDP vs raw socket configurable
-        Ok(socket2::Socket::new(
-            Domain::IPV4,
-            Type::DGRAM,
-            Some(Protocol::ICMPV4),
-        )?)
     }
 
     pub(crate) fn send_one_ping<S>(
@@ -98,5 +90,70 @@ impl IcmpV4 {
         let checksum = pnet_packet::icmp::checksum(&IcmpPacket::new(packet.packet())?);
         packet.set_checksum(checksum);
         Some(packet)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use std::sync::Mutex;
+
+    struct SocketMock {
+        sent: Mutex<Vec<(Vec<u8>, SocketAddr)>>,
+        received: Mutex<Vec<(Vec<u8>, Duration)>>,
+    }
+
+    impl SocketMock {
+        fn new() -> Self {
+            Self {
+                sent: Mutex::new(vec![]),
+                received: Mutex::new(vec![]),
+            }
+        }
+
+        fn should_send_number_of_messages(&self, n: usize) -> &Self {
+            assert!(n == self.sent.lock().unwrap().len());
+            self
+        }
+
+        fn should_send_to_address(&self, addr: &SocketAddr) -> &Self {
+            assert!(self.sent.lock().unwrap().iter().any(|e| *addr == e.1));
+            self
+        }
+    }
+
+    impl crate::Socket for SocketMock {
+        fn send_to(&self, buf: &[u8], addr: &SocketAddr) -> io::Result<usize> {
+            self.sent.lock().unwrap().push((buf.to_vec(), *addr));
+            Ok(buf.len())
+        }
+
+        fn try_recv_from(
+            &self,
+            buf: &mut [u8],
+            timeout: &Duration,
+        ) -> io::Result<Option<(usize, SocketAddr)>> {
+            self.received.lock().unwrap().push((buf.to_vec(), *timeout));
+            Ok(Some((
+                64,
+                std::net::SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 12345)),
+            )))
+        }
+    }
+
+    #[test]
+    fn test_send_one_ping() {
+        let socket_mock = SocketMock::new();
+
+        let icmpv4 = IcmpV4::create();
+
+        let addr = Ipv4Addr::new(127, 0, 0, 1);
+        let sequence_number = 1;
+        let result = icmpv4.send_one_ping(&socket_mock, &addr, sequence_number);
+
+        assert!(result.is_ok());
+        socket_mock
+            .should_send_number_of_messages(1)
+            .should_send_to_address(&std::net::SocketAddr::new(IpAddr::V4(addr), 0));
     }
 }
