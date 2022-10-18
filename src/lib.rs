@@ -40,13 +40,13 @@ impl Config {
     }
 }
 
-fn create_socket() -> Result<socket2::Socket, GenericError> {
+fn create_socket(timeout: Duration) -> Result<socket2::Socket, GenericError> {
     // TODO: make UDP vs raw socket configurable
-    Ok(socket2::Socket::new(
-        Domain::IPV4,
-        Type::DGRAM,
-        Some(Protocol::ICMPV4),
-    )?)
+    let socket = socket2::Socket::new(Domain::IPV4, Type::DGRAM, Some(Protocol::ICMPV4))?;
+    socket
+        .set_read_timeout(Some(timeout))
+        .expect("could not set socket timeout");
+    Ok(socket)
 }
 
 pub struct Ping {
@@ -66,7 +66,7 @@ impl Ping {
         let (tx, rx) = std::sync::mpsc::sync_channel::<PingResult<PingDataT>>(config.channel_size);
 
         let icmpv4 = std::sync::Arc::new(IcmpV4::create());
-        let socket = Arc::new(create_socket().unwrap()); // TODO(as): no unwrap
+        let socket = Arc::new(create_socket(Duration::from_millis(200)).unwrap()); // TODO(as): no unwrap
 
         let mut ping_sender =
             PingSender::new(icmpv4.clone(), socket.clone(), sender_receiver_tx.clone());
@@ -87,15 +87,19 @@ impl Ping {
         }
     }
     pub fn halt(self) -> std::thread::Result<()> {
+        println!("ping.halt() calling ping_sender");
         let maybe_err_1 = self.ping_sender.halt();
+        println!("ping.halt() calling ping_receiver");
         let maybe_err_2 = self.ping_receiver.halt();
 
+        println!("ping.halt() checking errors");
         if maybe_err_1.is_err() {
             return Err(maybe_err_1.err().unwrap());
         }
         if maybe_err_2.is_err() {
             return Err(maybe_err_2.err().unwrap());
         }
+        println!("ping.halt() done");
         Ok(())
     }
 }

@@ -9,11 +9,8 @@ use pnet_packet::icmp::{
 use pnet_packet::Packet;
 use rand::Rng;
 use std::io;
-use std::net::SocketAddr;
-use std::net::SocketAddrV4;
 use std::net::{IpAddr, Ipv4Addr};
 use std::result::Result;
-use std::time::Duration;
 
 use crate::GenericError;
 use crate::PingError;
@@ -49,7 +46,7 @@ impl IcmpV4 {
         })?;
 
         // let start_time = Instant::now();
-        socket.send_to(packet.packet(), &addr)?;
+        socket.send_to(packet.packet(), &addr.into())?;
 
         Ok((PAYLOAD_SIZE, ip_addr, sequence_number))
     }
@@ -61,17 +58,20 @@ impl IcmpV4 {
     where
         S: crate::Socket,
     {
-        let mut buf = [0u8; 256];
-        match socket.try_recv_from(&mut buf, &Duration::from_millis(100)) {
-            Ok(None) => Ok(None),
-            Err(e) => Err(Box::new(e)),
-            Ok(Some((n, addr))) => {
-                // let duration = start_time.elapsed();
-                let echo_reply_packet = EchoReplyPacket::new(&buf[..n])
-                    .expect("could not initialize echo reply packet");
+        let mut buf1 = [std::mem::MaybeUninit::new(0u8); 256];
+        match socket.recv_from(&mut buf1) {
+            Err(e) if e.kind() == io::ErrorKind::WouldBlock => Ok(None),
+            Err(e) => Err(e.into()),
+            Ok((n, addr)) => {
+                let buf2: Vec<u8> = buf1
+                    .iter()
+                    .take(n)
+                    .map(|&b| unsafe { b.assume_init() })
+                    .collect();
+                let echo_reply_packet =
+                    EchoReplyPacket::new(&buf2).expect("could not initialize echo reply packet");
                 let sn = echo_reply_packet.get_sequence_number();
-
-                Ok(Some((n, addr.ip(), sn)))
+                Ok(Some((n, addr.as_socket().expect("logic error").ip(), sn)))
             }
         }
     }
@@ -96,11 +96,12 @@ impl IcmpV4 {
 #[cfg(test)]
 mod test {
     use super::*;
+    use std::net::SocketAddr;
     use std::sync::Mutex;
 
     struct SocketMock {
-        sent: Mutex<Vec<(Vec<u8>, SocketAddr)>>,
-        received: Mutex<Vec<(Vec<u8>, Duration)>>,
+        sent: Mutex<Vec<(Vec<u8>, socket2::SockAddr)>>,
+        received: Mutex<Vec<Vec<u8>>>,
     }
 
     impl SocketMock {
@@ -116,28 +117,31 @@ mod test {
             self
         }
 
-        fn should_send_to_address(&self, addr: &SocketAddr) -> &Self {
-            assert!(self.sent.lock().unwrap().iter().any(|e| *addr == e.1));
+        fn should_send_to_address(&self, addr: &socket2::SockAddr) -> &Self {
+            assert!(self
+                .sent
+                .lock()
+                .unwrap()
+                .iter()
+                .any(|e| addr.as_socket() == e.1.as_socket()));
             self
         }
     }
 
     impl crate::Socket for SocketMock {
-        fn send_to(&self, buf: &[u8], addr: &SocketAddr) -> io::Result<usize> {
-            self.sent.lock().unwrap().push((buf.to_vec(), *addr));
+        fn send_to(&self, buf: &[u8], addr: &socket2::SockAddr) -> io::Result<usize> {
+            self.sent.lock().unwrap().push((buf.to_vec(), addr.clone()));
             Ok(buf.len())
         }
 
-        fn try_recv_from(
+        fn recv_from(
             &self,
-            buf: &mut [u8],
-            timeout: &Duration,
-        ) -> io::Result<Option<(usize, SocketAddr)>> {
-            self.received.lock().unwrap().push((buf.to_vec(), *timeout));
-            Ok(Some((
-                64,
-                std::net::SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 12345)),
-            )))
+            buf: &mut [std::mem::MaybeUninit<u8>],
+        ) -> io::Result<(usize, socket2::SockAddr)> {
+            // TODO: actually write some data into the buffer
+            let buf2: Vec<u8> = buf.iter().map(|&b| unsafe { b.assume_init() }).collect();
+            self.received.lock().unwrap().push(buf2);
+            Ok((64, "127.0.0.1:12345".parse::<SocketAddr>().unwrap().into()))
         }
     }
 
@@ -154,6 +158,6 @@ mod test {
         assert!(result.is_ok());
         socket_mock
             .should_send_number_of_messages(1)
-            .should_send_to_address(&std::net::SocketAddr::new(IpAddr::V4(addr), 0));
+            .should_send_to_address(&std::net::SocketAddr::new(IpAddr::V4(addr), 0).into());
     }
 }
