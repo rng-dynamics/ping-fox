@@ -7,10 +7,10 @@ use std::thread::JoinHandle;
 use crate::icmpv4::IcmpV4;
 use crate::p_set::PSetDataT;
 
-pub(crate) struct PingSender {
+pub(crate) struct PingSender<S> {
     states: Vec<State>,
     icmpv4: Arc<IcmpV4>,
-    socket: Arc<socket2::Socket>,
+    socket: Arc<S>,
     sender_receiver_tx: mpsc::SyncSender<PSetDataT>,
     halt_tx: mpsc::Sender<()>,
     halt_rx: Option<mpsc::Receiver<()>>,
@@ -24,7 +24,7 @@ pub(crate) enum State {
     Halted,
 }
 
-impl Drop for PingSender {
+impl<S> Drop for PingSender<S> {
     fn drop(&mut self) {
         if self.thread_handle.is_some() {
             panic!("you must call halt on PingSender to clean it up");
@@ -32,10 +32,13 @@ impl Drop for PingSender {
     }
 }
 
-impl PingSender {
+impl<S> PingSender<S>
+where
+    S: crate::Socket + 'static,
+{
     pub(crate) fn new(
         icmpv4: Arc<IcmpV4>,
-        socket: Arc<socket2::Socket>,
+        socket: Arc<S>,
         sender_receiver_tx: mpsc::SyncSender<PSetDataT>,
     ) -> Self {
         let (halt_tx, halt_rx) = mpsc::channel();
@@ -67,7 +70,7 @@ impl PingSender {
         join_result
     }
 
-    pub(crate) fn start(&mut self, count: u16, ips: VecDeque<Ipv4Addr>) {
+    pub(crate) fn start<'a>(&'a mut self, count: u16, ips: VecDeque<Ipv4Addr>) {
         if *self.states.last().expect("logic error") != State::New {
             return;
         }
@@ -83,7 +86,7 @@ impl PingSender {
                 println!("log TRACE: PingSender outer loop start");
                 for ip in &ips {
                     println!("log TRACE: PingSender inner loop start");
-                    let send_echo_result = icmpv4.send_one_ping(&socket, ip, sequence_number);
+                    let send_echo_result = icmpv4.send_one_ping(&*socket, ip, sequence_number);
                     println!("log TRACE: ping sent");
                     if let Err(error) = send_echo_result {
                         println!("log ERROR: error sending one ping: {}", error);
@@ -91,7 +94,7 @@ impl PingSender {
                     }
                     println!("log TRACE: icmpv4 successfully sent");
 
-                    let payload_size = send_echo_result.unwrap().0;
+                    let (payload_size, _, _, send_tx) = send_echo_result.unwrap();
                     sender_receiver_tx.send((*ip, sequence_number)).unwrap(); // TODO
                     println!("log TRACE: PingSender sent to PingReceiver");
 

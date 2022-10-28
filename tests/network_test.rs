@@ -18,9 +18,9 @@ fn test_ping_multiple_net() {
 
     println!("test_pint_multiplt_net: 2");
     // we expect two values
-    let frst = ping.receiver.recv().unwrap();
+    let frst = ping.receive().unwrap();
     println!("test_pint_multiplt_net: 3");
-    let scnd = ping.receiver.recv().unwrap();
+    let scnd = ping.receive().unwrap();
     println!("test_pint_multiplt_net: 4");
     // assert!(ping.receiver.recv().is_err());
 
@@ -28,17 +28,15 @@ fn test_ping_multiple_net() {
 
     println!("test_pint_multiplt_net: 5");
 
-    let r_1 = frst.unwrap();
-    println!("ip_1 == {:?}", r_1);
-    let ip_1_match_1 = r_1.1 == ip_example_com;
-    let ip_1_match_2 = r_1.1 == ip_iana_com;
+    println!("ip_1 == {:?}", frst);
+    let ip_1_match_1 = frst.1 == ip_example_com;
+    let ip_1_match_2 = frst.1 == ip_iana_com;
     assert!(ip_1_match_1 || ip_1_match_2);
     // assert_gt!(dur_1, Duration::from_secs(0));
 
-    let r_2 = scnd.unwrap();
-    println!("ip_2 == {:?}", r_2);
-    let ip_2_match_1 = r_2.1 == ip_example_com;
-    let ip_2_match_2 = r_2.1 == ip_iana_com;
+    println!("ip_2 == {:?}", scnd);
+    let ip_2_match_1 = scnd.1 == ip_example_com;
+    let ip_2_match_2 = scnd.1 == ip_iana_com;
     assert!(ip_2_match_1 || ip_2_match_2);
     // assert_gt!(dur_2, Duration::from_secs(0));
 }
