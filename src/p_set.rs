@@ -1,43 +1,41 @@
 use crate::ping_error::GenericError;
 use std::collections::HashSet;
-use std::net::Ipv4Addr;
+use std::net::IpAddr;
 use std::sync::mpsc;
+
+use crate::Receiver;
 
 pub(crate) enum PSetSender<T: std::any::Any> {
     Sync(mpsc::SyncSender<T>),
     NonSync(mpsc::Sender<T>),
 }
 
-pub(crate) type PSetDataT = (Ipv4Addr, u16);
+pub(crate) type PSetDataT = (IpAddr, u16);
 
 pub(crate) struct PSet {
     set: HashSet<PSetDataT>,
-    // Holding a copy of the sender in order the receiver is not disconnected before we read from
-    // the receiver.
-    _tx: PSetSender<PSetDataT>,
-    rx: mpsc::Receiver<PSetDataT>,
+    receiver: Receiver,
 }
 
 impl PSet {
-    pub(crate) fn new(tx: PSetSender<PSetDataT>, rx: mpsc::Receiver<PSetDataT>) -> Self {
+    pub(crate) fn new(receiver: Receiver) -> Self {
         Self {
             set: HashSet::new(),
-            _tx: tx,
-            rx,
+            receiver,
         }
     }
 
     pub(crate) fn update(&mut self) -> Result<(), GenericError> {
         loop {
-            match self.rx.try_recv() {
+            match self.receiver.try_receive() {
                 Err(std::sync::mpsc::TryRecvError::Empty) => {
                     // nothing to do
                     println!("PSet::update(): Err(Empty)");
                     break;
                 }
-                Ok(p) => {
+                Ok((payload_size, ip_addr, sequence_number, send_time)) => {
                     println!("PSet::update(): Ok(p)");
-                    let success = self.set.insert(p);
+                    let success = self.set.insert((ip_addr, sequence_number));
                     if !success {
                         println!("log ERROR: could not insert into hash set");
                     }

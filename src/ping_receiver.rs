@@ -5,19 +5,22 @@ use std::thread::JoinHandle;
 use std::time::Duration;
 
 use crate::p_set::*;
+use crate::FinalPingDataT;
 use crate::IcmpV4;
-use crate::PingDataT;
+use crate::PingError;
 use crate::PingResult;
 
 pub(crate) struct PingReceiver<S> {
     states: Vec<State>,
     icmpv4: Arc<IcmpV4>,
     socket: Arc<S>,
-    sender_receiver_tx: mpsc::SyncSender<PSetDataT>,
-    sender_receiver_rx: Option<mpsc::Receiver<PSetDataT>>,
+    chan_rx: Option<crate::Receiver>,
     halt_tx: mpsc::Sender<()>,
     halt_rx: Option<mpsc::Receiver<()>>,
     thread_handle: Option<JoinHandle<()>>,
+    channel_size: usize,
+    results_tx: mpsc::SyncSender<PingResult<FinalPingDataT>>,
+    results_rx: mpsc::Receiver<PingResult<FinalPingDataT>>,
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -42,24 +45,44 @@ where
     pub(crate) fn new(
         icmpv4: Arc<IcmpV4>,
         socket: Arc<S>,
-        sender_receiver_tx: mpsc::SyncSender<PSetDataT>,
-        sender_receiver_rx: mpsc::Receiver<PSetDataT>,
+        chan_rx: crate::Receiver,
+        channel_size: usize,
     ) -> Self {
         let (halt_tx, halt_rx) = mpsc::channel();
+        let (results_tx, results_rx) =
+            mpsc::sync_channel::<PingResult<FinalPingDataT>>(channel_size);
         PingReceiver {
             states: vec![State::New],
             icmpv4,
             socket,
-            sender_receiver_tx,
-            sender_receiver_rx: Some(sender_receiver_rx),
+            chan_rx: Some(chan_rx),
             halt_tx,
             halt_rx: Some(halt_rx),
             thread_handle: None,
+            channel_size,
+            results_tx,
+            results_rx,
         }
     }
 
     pub(crate) fn get_states(&self) -> Vec<State> {
         self.states.clone()
+    }
+
+    pub fn next_result(&self) -> PingResult<FinalPingDataT> {
+        if *self.states.last().expect("logic error") == State::Halted {
+            return Err(PingError {
+                message: "cannot get next result when PingReceiver is halted".to_string(),
+                source: None,
+            }
+            .into());
+        }
+
+        match self.results_rx.try_recv() {
+            Err(e) => Err(e.into()),
+            Ok(Err(e)) => Err(e),
+            Ok(Ok(ok)) => Ok(ok),
+        }
     }
 
     pub(crate) fn halt(mut self) -> std::thread::Result<()> {
@@ -76,18 +99,18 @@ where
         join_result
     }
 
-    pub(crate) fn start(&mut self, tx: mpsc::SyncSender<PingResult<PingDataT>>) {
+    pub(crate) fn start(&mut self) {
         if *self.states.last().expect("logic error") != State::New {
             return;
         }
 
-        let sender_receiver_tx = self.sender_receiver_tx.clone();
-        let sender_receiver_rx = self.sender_receiver_rx.take().expect("logic error");
-        let mut pset = PSet::new(PSetSender::Sync(sender_receiver_tx), sender_receiver_rx);
+        let mut pset = PSet::new(self.chan_rx.take().expect("logic error"));
 
         let icmpv4 = self.icmpv4.clone();
         let socket = self.socket.clone();
+        let results_tx = self.results_tx.clone();
         let halt_rx = self.halt_rx.take().expect("logic error");
+
         self.thread_handle = Some(std::thread::spawn(move || {
             'outer: loop {
                 match halt_rx.try_recv() {
@@ -109,27 +132,22 @@ where
                     Ok(Some((n, ip, sn))) => {
                         println!("log TRACE: try_receive Ok(Some((ip, sn)))");
                         println!("log TRACE: icmpv4 received");
-                        if let IpAddr::V4(ipv4) = ip {
-                            let mut contains = pset.contains(&(ipv4, sn));
-                            if !contains {
-                                pset.update().unwrap();
-                            }
-                            contains = pset.contains(&(ipv4, sn));
-                            pset.remove(&(ipv4, sn));
-                            if !contains {
-                                println!("log ERROR: on receive not contained");
+                        let mut contains = pset.contains(&(ip, sn));
+                        if !contains {
+                            pset.update().unwrap();
+                        }
+                        contains = pset.contains(&(ip, sn));
+                        pset.remove(&(ip, sn));
+                        if !contains {
+                            println!("log ERROR: on receive not contained");
+                            break 'outer;
+                        }
+                        match results_tx.send(Ok((n, ip, sn))) {
+                            Ok(()) => {}
+                            Err(e) => {
+                                println!("log ERROR: could not send notification");
                                 break 'outer;
                             }
-                            match tx.send(Ok((n, ipv4, sn))) {
-                                Ok(()) => {}
-                                Err(e) => {
-                                    println!("log ERROR: could not send notification");
-                                    break 'outer;
-                                }
-                            }
-                        } else {
-                            println!("log ERROR: received non-V4");
-                            panic!();
                         }
                     }
                 }

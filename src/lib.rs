@@ -2,10 +2,14 @@
 
 use socket2::{Domain, Protocol, Type};
 use std::collections::VecDeque;
+use std::net::IpAddr;
 use std::net::Ipv4Addr;
+use std::sync::mpsc;
 use std::sync::Arc;
 use std::time::Duration;
+use std::time::Instant;
 
+mod channel;
 mod icmpv4;
 mod p_set;
 mod ping_error;
@@ -13,6 +17,7 @@ mod ping_receiver;
 mod ping_sender;
 mod socket;
 
+use channel::*;
 use icmpv4::*;
 use p_set::*;
 use ping_error::*;
@@ -24,8 +29,10 @@ pub use ping_error::GenericError;
 
 pub type PingResult<T> = std::result::Result<T, GenericError>;
 
+type InternalData = (usize, IpAddr, u16, Instant);
+
 // payload size, ip address, sequence number
-type PingDataT = (usize, Ipv4Addr, u16);
+type FinalPingDataT = (usize, IpAddr, u16);
 
 pub struct Config {
     channel_size: usize,
@@ -48,7 +55,7 @@ fn create_socket(timeout: Duration) -> Result<socket2::Socket, GenericError> {
 
 pub struct Ping {
     states: Vec<State>,
-    receiver: std::sync::mpsc::Receiver<PingResult<PingDataT>>,
+    // rx: mpsc::Receiver<PingResult<FinalPingDataT>>,
     ping_sender: PingSender<socket2::Socket>,
     ping_receiver: PingReceiver<socket2::Socket>,
 }
@@ -65,27 +72,23 @@ impl Ping {
         for ip in ips {
             deque.push_back(*ip);
         }
-        let (sender_receiver_tx, sender_receiver_rx) =
-            std::sync::mpsc::sync_channel::<PSetDataT>(config.channel_size);
-        let (tx, rx) = std::sync::mpsc::sync_channel::<PingResult<PingDataT>>(config.channel_size);
 
         let icmpv4 = std::sync::Arc::new(IcmpV4::create());
         let socket = Arc::new(create_socket(Duration::from_millis(200)).unwrap()); // TODO(as): no unwrap
+        let (thread_comm_tx, thread_comm_rx) = create_sync_channel(config.channel_size);
 
         let mut ping_receiver = PingReceiver::new(
             icmpv4.clone(),
             socket.clone(),
-            sender_receiver_tx.clone(),
-            sender_receiver_rx,
+            thread_comm_rx,
+            config.channel_size,
         );
-        ping_receiver.start(tx);
-        let mut ping_sender =
-            PingSender::new(icmpv4.clone(), socket.clone(), sender_receiver_tx.clone());
+        ping_receiver.start();
+        let mut ping_sender = PingSender::new(icmpv4.clone(), socket.clone(), thread_comm_tx);
         ping_sender.start(count, deque);
 
         Self {
             states: vec![State::Running],
-            receiver: rx,
             ping_sender,
             ping_receiver,
         }
@@ -95,19 +98,8 @@ impl Ping {
         self.states.clone()
     }
 
-    pub fn receive(&self) -> PingResult<PingDataT> {
-        if *self.states.last().expect("logic error") == State::Halted {
-            return Err(PingError {
-                message: "cannot receive when Ping is halted".to_string(),
-                source: None,
-            }
-            .into());
-        }
-        match self.receiver.try_recv() {
-            Err(e) => Err(e.into()),
-            Ok(Err(e)) => Err(e),
-            Ok(Ok(ok)) => Ok(ok),
-        }
+    pub fn next_result(&self) -> PingResult<FinalPingDataT> {
+        self.ping_receiver.next_result()
     }
 
     pub fn halt(mut self) -> std::thread::Result<()> {
@@ -141,12 +133,12 @@ mod tests {
         let config = Config::new(64);
 
         let ips = [Ipv4Addr::new(127, 0, 0, 1)];
-        let ping: Ping = Ping::create(&config, &ips, 1); // ping_rs.ping(1);
+        let ping: Ping = Ping::create(&config, &ips, 1);
         println!("ping.start_ping() done");
 
-        let _ = ping.receiver.recv().unwrap();
+        std::thread::sleep(std::time::Duration::from_secs(1));
+        let _ = ping.next_result().unwrap();
         println!("in test received");
-        // let (hostname, ip, dur) = pinger_thread.receiver.recv().unwrap().unwrap();
 
         let halt_result = ping.halt();
         println!("pinger_trhead.halt() done");

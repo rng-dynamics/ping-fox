@@ -11,7 +11,7 @@ pub(crate) struct PingSender<S> {
     states: Vec<State>,
     icmpv4: Arc<IcmpV4>,
     socket: Arc<S>,
-    sender_receiver_tx: mpsc::SyncSender<PSetDataT>,
+    comm_chan_tx: crate::SyncSender,
     halt_tx: mpsc::Sender<()>,
     halt_rx: Option<mpsc::Receiver<()>>,
     thread_handle: Option<JoinHandle<()>>,
@@ -39,14 +39,14 @@ where
     pub(crate) fn new(
         icmpv4: Arc<IcmpV4>,
         socket: Arc<S>,
-        sender_receiver_tx: mpsc::SyncSender<PSetDataT>,
+        comm_chan_tx: crate::SyncSender,
     ) -> Self {
         let (halt_tx, halt_rx) = mpsc::channel();
         PingSender {
             states: vec![State::New],
             icmpv4,
             socket,
-            sender_receiver_tx,
+            comm_chan_tx,
             halt_tx,
             halt_rx: Some(halt_rx),
             thread_handle: None,
@@ -77,7 +77,7 @@ where
 
         let icmpv4 = self.icmpv4.clone();
         let socket = self.socket.clone();
-        let sender_receiver_tx = self.sender_receiver_tx.clone();
+        let comm_chan = self.comm_chan_tx.clone();
         let halt_rx = self.halt_rx.take().expect("logic error");
 
         self.thread_handle = Some(std::thread::spawn(move || {
@@ -94,8 +94,10 @@ where
                     }
                     println!("log TRACE: icmpv4 successfully sent");
 
-                    let (payload_size, _, _, send_tx) = send_echo_result.unwrap();
-                    sender_receiver_tx.send((*ip, sequence_number)).unwrap(); // TODO
+                    let (payload_size, ip_addr, _, send_time) = send_echo_result.unwrap();
+                    comm_chan
+                        .send((payload_size, ip_addr, sequence_number, send_time))
+                        .unwrap(); // TODO
                     println!("log TRACE: PingSender sent to PingReceiver");
 
                     match halt_rx.try_recv() {

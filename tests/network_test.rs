@@ -18,9 +18,9 @@ fn test_ping_multiple_net() {
 
     println!("test_pint_multiplt_net: 2");
     // we expect two values
-    let frst = ping.receive().unwrap();
+    let frst = ping.next_result().unwrap();
     println!("test_pint_multiplt_net: 3");
-    let scnd = ping.receive().unwrap();
+    let scnd = ping.next_result().unwrap();
     println!("test_pint_multiplt_net: 4");
     // assert!(ping.receiver.recv().is_err());
 
