@@ -11,6 +11,7 @@ use rand::Rng;
 use std::io;
 use std::net::{IpAddr, Ipv4Addr};
 use std::result::Result;
+use std::time::Instant;
 
 use crate::GenericError;
 use crate::PingError;
@@ -33,7 +34,7 @@ impl IcmpV4 {
         socket: &S,
         ipv4: &Ipv4Addr,
         sequence_number: u16,
-    ) -> Result<(usize, IpAddr, u16), PingError>
+    ) -> Result<(usize, IpAddr, u16, Instant), PingError>
     where
         S: crate::Socket,
     {
@@ -45,10 +46,10 @@ impl IcmpV4 {
             source: None,
         })?;
 
-        // let start_time = Instant::now();
+        let start_time: Instant = Instant::now();
         socket.send_to(packet.packet(), &addr.into())?;
 
-        Ok((PAYLOAD_SIZE, ip_addr, sequence_number))
+        Ok((PAYLOAD_SIZE, ip_addr, sequence_number, start_time))
     }
 
     pub(crate) fn try_receive<S>(
@@ -58,7 +59,7 @@ impl IcmpV4 {
     where
         S: crate::Socket,
     {
-        let mut buf1 = [std::mem::MaybeUninit::new(0u8); 256];
+        let mut buf1 = [std::mem::MaybeUninit::<u8>::uninit(); 256];
         match socket.recv_from(&mut buf1) {
             Err(e) if e.kind() == io::ErrorKind::WouldBlock => Ok(None),
             Err(e) => Err(e.into()),
@@ -71,6 +72,7 @@ impl IcmpV4 {
                 let echo_reply_packet =
                     EchoReplyPacket::new(&buf2).expect("could not initialize echo reply packet");
                 let sn = echo_reply_packet.get_sequence_number();
+                // To get TTL we will need to create the socket with Protocol::IPV4
                 Ok(Some((n, addr.as_socket().expect("logic error").ip(), sn)))
             }
         }
@@ -87,6 +89,7 @@ impl IcmpV4 {
         packet.set_icmp_type(IcmpTypes::EchoRequest);
         packet.set_payload(&self.payload);
 
+        packet.set_checksum(0_u16);
         let checksum = pnet_packet::icmp::checksum(&IcmpPacket::new(packet.packet())?);
         packet.set_checksum(checksum);
         Some(packet)
@@ -96,59 +99,11 @@ impl IcmpV4 {
 #[cfg(test)]
 mod test {
     use super::*;
-    use std::net::SocketAddr;
-    use std::sync::Mutex;
-
-    struct SocketMock {
-        sent: Mutex<Vec<(Vec<u8>, socket2::SockAddr)>>,
-        received: Mutex<Vec<Vec<u8>>>,
-    }
-
-    impl SocketMock {
-        fn new() -> Self {
-            Self {
-                sent: Mutex::new(vec![]),
-                received: Mutex::new(vec![]),
-            }
-        }
-
-        fn should_send_number_of_messages(&self, n: usize) -> &Self {
-            assert!(n == self.sent.lock().unwrap().len());
-            self
-        }
-
-        fn should_send_to_address(&self, addr: &socket2::SockAddr) -> &Self {
-            assert!(self
-                .sent
-                .lock()
-                .unwrap()
-                .iter()
-                .any(|e| addr.as_socket() == e.1.as_socket()));
-            self
-        }
-    }
-
-    impl crate::Socket for SocketMock {
-        fn send_to(&self, buf: &[u8], addr: &socket2::SockAddr) -> io::Result<usize> {
-            self.sent.lock().unwrap().push((buf.to_vec(), addr.clone()));
-            Ok(buf.len())
-        }
-
-        fn recv_from(
-            &self,
-            buf: &mut [std::mem::MaybeUninit<u8>],
-        ) -> io::Result<(usize, socket2::SockAddr)> {
-            // TODO: actually write some data into the buffer
-            let buf2: Vec<u8> = buf.iter().map(|&b| unsafe { b.assume_init() }).collect();
-            self.received.lock().unwrap().push(buf2);
-            Ok((64, "127.0.0.1:12345".parse::<SocketAddr>().unwrap().into()))
-        }
-    }
+    use crate::socket::test::SocketMock;
 
     #[test]
     fn test_send_one_ping() {
         let socket_mock = SocketMock::new();
-
         let icmpv4 = IcmpV4::create();
 
         let addr = Ipv4Addr::new(127, 0, 0, 1);
@@ -159,5 +114,20 @@ mod test {
         socket_mock
             .should_send_number_of_messages(1)
             .should_send_to_address(&std::net::SocketAddr::new(IpAddr::V4(addr), 0).into());
+    }
+
+    #[test]
+    fn test_try_receive() {
+        let socket_mock = SocketMock::new();
+        let icmpv4 = IcmpV4::create();
+
+        let result = icmpv4.try_receive(&socket_mock);
+
+        assert!(result.is_ok());
+        assert!(result.as_ref().unwrap().is_some());
+        let (n, addr, _sn) = result.unwrap().unwrap();
+        assert!(n >= EchoReplyPacket::minimum_packet_size());
+        assert!(addr == Ipv4Addr::new(127, 0, 0, 1));
+        socket_mock.should_receive_number_of_messages(1);
     }
 }

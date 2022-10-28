@@ -20,12 +20,9 @@ fn main() -> Result<(), std::net::AddrParseError> {
     std::thread::sleep(std::time::Duration::from_secs(1));
     println!("cli/main.rs # 1");
 
-    match ping.receiver.try_recv() {
-        Ok(Ok((n, ip, sn))) => {
-            println!("Ok Ok {} {} {}", n, ip, sn);
-        }
-        Ok(Err(e)) => {
-            println!("ERROR Ok(Err(e)): {:?}", e);
+    match ping.receive() {
+        Ok((n, ip, sn)) => {
+            println!("Ok {} {} {}", n, ip, sn);
         }
         Err(e) => {
             println!("ERROR Err(e): {:?}", e);

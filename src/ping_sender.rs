@@ -1,6 +1,5 @@
 use std::collections::VecDeque;
 use std::net::Ipv4Addr;
-use std::ops::Deref;
 use std::sync::mpsc;
 use std::sync::Arc;
 use std::thread::JoinHandle;
@@ -95,7 +94,7 @@ where
                     }
                     println!("log TRACE: icmpv4 successfully sent");
 
-                    let payload_size = send_echo_result.unwrap().0;
+                    let (payload_size, _, _, send_tx) = send_echo_result.unwrap();
                     sender_receiver_tx.send((*ip, sequence_number)).unwrap(); // TODO
                     println!("log TRACE: PingSender sent to PingReceiver");
 
