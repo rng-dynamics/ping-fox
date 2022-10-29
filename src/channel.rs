@@ -1,6 +1,4 @@
-use std::net::IpAddr;
-use std::sync::mpsc::{self, TryRecvError};
-use std::time::Instant;
+use std::sync::mpsc;
 
 use crate::InternalData;
 
@@ -16,7 +14,7 @@ impl SyncSender {
 pub(crate) struct Receiver(mpsc::SyncSender<InternalData>, mpsc::Receiver<InternalData>);
 
 impl Receiver {
-    pub(crate) fn try_receive(&self) -> Result<InternalData, TryRecvError> {
+    pub(crate) fn try_receive(&self) -> Result<InternalData, mpsc::TryRecvError> {
         self.1.try_recv()
     }
 }

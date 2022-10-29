@@ -67,7 +67,7 @@ pub(crate) enum State {
 }
 
 impl Ping {
-    pub fn create(config: &Config, ips: &[Ipv4Addr], count: u16) -> Self {
+    pub fn start(config: &Config, ips: &[Ipv4Addr], count: u16) -> Self {
         let mut deque = VecDeque::<Ipv4Addr>::new();
         for ip in ips {
             deque.push_back(*ip);
@@ -133,7 +133,7 @@ mod tests {
         let config = Config::new(64);
 
         let ips = [Ipv4Addr::new(127, 0, 0, 1)];
-        let ping: Ping = Ping::create(&config, &ips, 1);
+        let ping: Ping = Ping::start(&config, &ips, 1);
         println!("ping.start_ping() done");
 
         std::thread::sleep(std::time::Duration::from_secs(1));

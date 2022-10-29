@@ -15,7 +15,7 @@ fn main() -> Result<(), std::net::AddrParseError> {
     }
     let config = Config::new(64);
 
-    let ping = Ping::create(&config, &addresses, 1);
+    let ping = Ping::start(&config, &addresses, 1);
 
     std::thread::sleep(std::time::Duration::from_secs(1));
     println!("cli/main.rs # 1");

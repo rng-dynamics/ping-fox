@@ -12,7 +12,7 @@ fn test_ping_multiple_net() {
 
     let config = Config::new(64);
     println!("test_pint_multiplt_net: 1");
-    let ping = Ping::create(&config, &[ip_example_com, ip_iana_com], 1);
+    let ping = Ping::start(&config, &[ip_example_com, ip_iana_com], 1);
 
     std::thread::sleep(std::time::Duration::from_secs(1));
 
