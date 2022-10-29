@@ -18,7 +18,6 @@ pub(crate) struct PingReceiver<S> {
     halt_tx: mpsc::Sender<()>,
     halt_rx: Option<mpsc::Receiver<()>>,
     thread_handle: Option<JoinHandle<()>>,
-    channel_size: usize,
     results_tx: mpsc::SyncSender<PingResult<FinalPingDataT>>,
     results_rx: mpsc::Receiver<PingResult<FinalPingDataT>>,
 }
@@ -48,7 +47,7 @@ where
         chan_rx: crate::Receiver,
         channel_size: usize,
     ) -> Self {
-        let (halt_tx, halt_rx) = mpsc::channel();
+        let (halt_tx, halt_rx) = mpsc::channel::<()>();
         let (results_tx, results_rx) =
             mpsc::sync_channel::<PingResult<FinalPingDataT>>(channel_size);
         PingReceiver {
@@ -59,7 +58,6 @@ where
             halt_tx,
             halt_rx: Some(halt_rx),
             thread_handle: None,
-            channel_size,
             results_tx,
             results_rx,
         }

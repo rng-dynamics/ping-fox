@@ -23,7 +23,7 @@ impl Socket for socket2::Socket {
 }
 
 #[cfg(test)]
-pub(crate) mod test {
+pub(crate) mod tests {
     use std::io;
     use std::net::SocketAddr;
     use std::sync::Mutex;
@@ -37,13 +37,27 @@ pub(crate) mod test {
     use pnet_packet::Packet;
     use pnet_packet::PacketSize;
 
+    #[derive(PartialEq, Eq)]
+    pub(crate) enum OnCall {
+        ReturnErr,
+        ReturnDefault,
+    }
+
     pub(crate) struct SocketMock {
+        on_call: OnCall,
         sent: Mutex<Vec<(Vec<u8>, socket2::SockAddr)>>,
         received_cnt: Mutex<usize>,
     }
 
     impl crate::Socket for SocketMock {
         fn send_to(&self, buf: &[u8], addr: &socket2::SockAddr) -> io::Result<usize> {
+            if self.on_call == OnCall::ReturnErr {
+                return Err(io::Error::new(
+                    io::ErrorKind::Other,
+                    "simulating error in mock",
+                ));
+            }
+
             self.sent.lock().unwrap().push((buf.to_vec(), addr.clone()));
             Ok(buf.len())
         }
@@ -52,6 +66,13 @@ pub(crate) mod test {
             &self,
             buf: &mut [std::mem::MaybeUninit<u8>],
         ) -> io::Result<(usize, socket2::SockAddr)> {
+            if self.on_call == OnCall::ReturnErr {
+                return Err(io::Error::new(
+                    io::ErrorKind::Other,
+                    "simulating error in mock",
+                ));
+            }
+
             let payload: Vec<u8> = vec![0xFF, 0xFF, 0xFF, 0xFF];
             if buf.len() < EchoReplyPacket::minimum_packet_size() + payload.len() {
                 return Err(io::Error::new(io::ErrorKind::Other, "buffer too small"));
@@ -82,8 +103,9 @@ pub(crate) mod test {
     }
 
     impl SocketMock {
-        pub(crate) fn new() -> Self {
+        pub(crate) fn new(on_call: OnCall) -> Self {
             Self {
+                on_call,
                 sent: Mutex::new(vec![]),
                 received_cnt: Mutex::new(0),
             }

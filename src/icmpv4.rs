@@ -46,6 +46,7 @@ impl IcmpV4 {
             source: None,
         })?;
 
+        // TODO(as): use interface and mock for getting time
         let start_time: Instant = Instant::now();
         socket.send_to(packet.packet(), &addr.into())?;
 
@@ -97,13 +98,14 @@ impl IcmpV4 {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
-    use crate::socket::test::SocketMock;
+    use crate::socket::tests::OnCall;
+    use crate::socket::tests::SocketMock;
 
     #[test]
     fn test_send_one_ping() {
-        let socket_mock = SocketMock::new();
+        let socket_mock = SocketMock::new(OnCall::ReturnDefault);
         let icmpv4 = IcmpV4::create();
 
         let addr = Ipv4Addr::new(127, 0, 0, 1);
@@ -118,7 +120,7 @@ mod test {
 
     #[test]
     fn test_try_receive() {
-        let socket_mock = SocketMock::new();
+        let socket_mock = SocketMock::new(OnCall::ReturnDefault);
         let icmpv4 = IcmpV4::create();
 
         let result = icmpv4.try_receive(&socket_mock);

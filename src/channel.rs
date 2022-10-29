@@ -14,6 +14,10 @@ impl SyncSender {
 pub(crate) struct Receiver(mpsc::SyncSender<InternalData>, mpsc::Receiver<InternalData>);
 
 impl Receiver {
+    pub(crate) fn receive(&self) -> Result<InternalData, mpsc::RecvError> {
+        self.1.recv()
+    }
+
     pub(crate) fn try_receive(&self) -> Result<InternalData, mpsc::TryRecvError> {
         self.1.try_recv()
     }
