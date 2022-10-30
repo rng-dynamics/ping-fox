@@ -121,14 +121,18 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::socket::tests::OnCall;
+    use crate::socket::tests::OnReceive;
+    use crate::socket::tests::OnSend;
     use crate::socket::tests::SocketMock;
 
     const CHANNEL_SIZE: usize = 8;
 
     #[test]
     fn entity_states() {
-        let socket_mock = Arc::new(SocketMock::new(OnCall::ReturnDefault));
+        let socket_mock = Arc::new(SocketMock::new(
+            OnSend::ReturnDefault,
+            OnReceive::ReturnWouldBlock,
+        ));
         let icmpv4 = Arc::new(IcmpV4::create());
         let (comm_chan_tx, _comm_chan_rx) = crate::channel::create_sync_channel(CHANNEL_SIZE);
 
@@ -145,7 +149,10 @@ mod tests {
     #[test]
     #[should_panic(expected = "you must call halt on PingSender to clean it up")]
     fn not_calling_halt_may_panic_on_drop() {
-        let socket_mock = Arc::new(SocketMock::new(OnCall::ReturnDefault));
+        let socket_mock = Arc::new(SocketMock::new(
+            OnSend::ReturnDefault,
+            OnReceive::ReturnWouldBlock,
+        ));
         let icmpv4 = Arc::new(IcmpV4::create());
         let (comm_chan_tx, _comm_chan_rx) = crate::channel::create_sync_channel(CHANNEL_SIZE);
 
@@ -158,7 +165,10 @@ mod tests {
 
     #[test]
     fn send_ping_packets_success() {
-        let socket_mock = Arc::new(SocketMock::new(OnCall::ReturnDefault));
+        let socket_mock = Arc::new(SocketMock::new(
+            OnSend::ReturnDefault,
+            OnReceive::ReturnWouldBlock,
+        ));
         let icmpv4 = Arc::new(IcmpV4::create());
         let (comm_chan_tx, comm_chan_rx) = crate::channel::create_sync_channel(CHANNEL_SIZE);
 
@@ -183,7 +193,10 @@ mod tests {
 
     #[test]
     fn when_socket_fails_then_ping_sender_fails() {
-        let socket_mock = Arc::new(SocketMock::new(OnCall::ReturnErr));
+        let socket_mock = Arc::new(SocketMock::new(
+            OnSend::ReturnDefault,
+            OnReceive::ReturnWouldBlock,
+        ));
         let icmpv4 = Arc::new(IcmpV4::create());
         let (comm_chan_tx, comm_chan_rx) = crate::channel::create_sync_channel(CHANNEL_SIZE);
 
@@ -197,7 +210,10 @@ mod tests {
 
     #[test]
     fn calling_start_after_halt_is_ignored() {
-        let socket_mock = Arc::new(SocketMock::new(OnCall::ReturnDefault));
+        let socket_mock = Arc::new(SocketMock::new(
+            OnSend::ReturnDefault,
+            OnReceive::ReturnWouldBlock,
+        ));
         let icmpv4 = Arc::new(IcmpV4::create());
         let (comm_chan_tx, comm_chan_rx) = crate::channel::create_sync_channel(CHANNEL_SIZE);
 
@@ -214,7 +230,10 @@ mod tests {
 
     #[test]
     fn calling_start_a_second_time_is_ignored() {
-        let socket_mock = Arc::new(SocketMock::new(OnCall::ReturnDefault));
+        let socket_mock = Arc::new(SocketMock::new(
+            OnSend::ReturnDefault,
+            OnReceive::ReturnWouldBlock,
+        ));
         let icmpv4 = Arc::new(IcmpV4::create());
         let (comm_chan_tx, comm_chan_rx) = crate::channel::create_sync_channel(CHANNEL_SIZE);
 

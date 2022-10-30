@@ -32,7 +32,7 @@ pub(crate) enum State {
 impl<S> Drop for PingReceiver<S> {
     fn drop(&mut self) {
         if self.thread_handle.is_some() {
-            panic!("you must call halt on PingerReceiver to clean it up");
+            panic!("you must call halt on PingReceiver to clean it up");
         }
     }
 }
@@ -83,7 +83,7 @@ where
         }
     }
 
-    pub(crate) fn halt(mut self) -> std::thread::Result<()> {
+    pub(crate) fn halt(&mut self) -> std::thread::Result<()> {
         if *self.states.last().expect("logic error") == State::Halted {
             return Ok(());
         }
@@ -111,17 +111,11 @@ where
 
         self.thread_handle = Some(std::thread::spawn(move || {
             'outer: loop {
-                match halt_rx.try_recv() {
-                    Ok(_) | Err(std::sync::mpsc::TryRecvError::Disconnected) => break 'outer,
-                    Err(std::sync::mpsc::TryRecvError::Empty) => {}
-                }
-
                 let recv_echo_result = icmpv4.try_receive(&*socket);
                 match recv_echo_result {
                     Ok(None) => {
                         println!("log TRACE: try_receive Ok(None)");
                         // nothing received
-                        continue 'outer;
                     }
                     Err(e) => {
                         println!("log TRACE: try_receive Err(e)");
@@ -142,17 +136,99 @@ where
                         }
                         match results_tx.send(Ok((n, ip, sn))) {
                             Ok(()) => {}
-                            Err(e) => {
+                            Err(_) => {
                                 println!("log ERROR: could not send notification");
                                 break 'outer;
                             }
                         }
+                        println!("log TRACE: sent received result to output-channel");
                     }
+                }
+                match halt_rx.try_recv() {
+                    Ok(_) | Err(std::sync::mpsc::TryRecvError::Disconnected) => break 'outer,
+                    Err(std::sync::mpsc::TryRecvError::Empty) => {}
                 }
             }
             println!("log TRACE: PingReceiver thread end");
         }));
 
+        println!("log TRACE: PingReceiver started");
         self.states.push(State::Receiving);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::socket::tests::OnReceive;
+    use crate::socket::tests::OnSend;
+    use crate::socket::tests::SocketMock;
+
+    use std::net::Ipv4Addr;
+
+    const CHANNEL_SIZE: usize = 8;
+
+    #[test]
+    fn entity_states() {
+        let socket_mock = Arc::new(SocketMock::new(
+            OnSend::ReturnDefault,
+            OnReceive::ReturnWouldBlock,
+        ));
+        let icmpv4 = Arc::new(IcmpV4::create());
+        let (_comm_chan_tx, comm_chan_rx) = crate::channel::create_sync_channel(CHANNEL_SIZE);
+
+        let mut ping_receiver = PingReceiver::new(icmpv4, socket_mock, comm_chan_rx, CHANNEL_SIZE);
+
+        assert!(vec![State::New] == ping_receiver.get_states());
+        ping_receiver.start();
+        assert!(vec![State::New, State::Receiving] == ping_receiver.get_states());
+        let _ = ping_receiver.halt();
+        assert!(vec![State::New, State::Receiving, State::Halted] == ping_receiver.get_states());
+    }
+
+    #[test]
+    #[should_panic(expected = "you must call halt on PingReceiver to clean it up")]
+    fn not_calling_halt_may_panic_on_drop() {
+        let socket_mock = Arc::new(SocketMock::new(
+            OnSend::ReturnDefault,
+            OnReceive::ReturnWouldBlock,
+        ));
+        let icmpv4 = Arc::new(IcmpV4::create());
+        let (_comm_chan_tx, comm_chan_rx) = crate::channel::create_sync_channel(CHANNEL_SIZE);
+
+        let mut ping_receiver = PingReceiver::new(icmpv4, socket_mock, comm_chan_rx, CHANNEL_SIZE);
+        ping_receiver.start();
+
+        drop(ping_receiver);
+    }
+
+    #[test]
+    fn receive_ping_packets_success() {
+        let socket_mock = Arc::new(SocketMock::new(
+            OnSend::ReturnDefault,
+            OnReceive::ReturnDefault(1),
+        ));
+        let icmpv4 = Arc::new(IcmpV4::create());
+        let (comm_chan_tx, comm_chan_rx) = crate::channel::create_sync_channel(CHANNEL_SIZE);
+        let payload_size = 4;
+        let ip_addr = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
+        let sequence_number = 0;
+        let send_time = std::time::Instant::now();
+
+        comm_chan_tx
+            .send((payload_size, ip_addr, sequence_number, send_time))
+            .unwrap();
+
+        let mut ping_receiver = PingReceiver::new(icmpv4, socket_mock, comm_chan_rx, CHANNEL_SIZE);
+        ping_receiver.start();
+        // TODO: get rid of that sleep
+        std::thread::sleep(std::time::Duration::from_millis(1));
+        println!("log TRACE: receive_ping_packets_success: will call next_result");
+        let next_ping_receiver_result = ping_receiver.next_result();
+        println!("log TRACE: receive_ping_packets_success: call next_result done");
+
+        let _ = ping_receiver.halt();
+
+        assert!(next_ping_receiver_result.is_ok());
     }
 }

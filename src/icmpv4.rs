@@ -100,12 +100,13 @@ impl IcmpV4 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::socket::tests::OnCall;
+    use crate::socket::tests::OnReceive;
+    use crate::socket::tests::OnSend;
     use crate::socket::tests::SocketMock;
 
     #[test]
     fn test_send_one_ping() {
-        let socket_mock = SocketMock::new(OnCall::ReturnDefault);
+        let socket_mock = SocketMock::new(OnSend::ReturnDefault, OnReceive::ReturnWouldBlock);
         let icmpv4 = IcmpV4::create();
 
         let addr = Ipv4Addr::new(127, 0, 0, 1);
@@ -120,7 +121,7 @@ mod tests {
 
     #[test]
     fn test_try_receive() {
-        let socket_mock = SocketMock::new(OnCall::ReturnDefault);
+        let socket_mock = SocketMock::new(OnSend::ReturnDefault, OnReceive::ReturnDefault(1));
         let icmpv4 = IcmpV4::create();
 
         let result = icmpv4.try_receive(&socket_mock);
