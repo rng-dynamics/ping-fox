@@ -56,7 +56,7 @@ impl IcmpV4 {
     pub(crate) fn try_receive<S>(
         &self,
         socket: &S,
-    ) -> std::result::Result<Option<(usize, IpAddr, u16)>, GenericError>
+    ) -> std::result::Result<Option<(usize, IpAddr, u16, Instant)>, GenericError>
     where
         S: crate::Socket,
     {
@@ -65,6 +65,7 @@ impl IcmpV4 {
             Err(e) if e.kind() == io::ErrorKind::WouldBlock => Ok(None),
             Err(e) => Err(e.into()),
             Ok((n, addr)) => {
+                let receive_time: Instant = Instant::now();
                 let buf2: Vec<u8> = buf1
                     .iter()
                     .take(n)
@@ -74,7 +75,12 @@ impl IcmpV4 {
                     EchoReplyPacket::new(&buf2).expect("could not initialize echo reply packet");
                 let sn = echo_reply_packet.get_sequence_number();
                 // To get TTL we will need to create the socket with Protocol::IPV4
-                Ok(Some((n, addr.as_socket().expect("logic error").ip(), sn)))
+                Ok(Some((
+                    n,
+                    addr.as_socket().expect("logic error").ip(),
+                    sn,
+                    receive_time,
+                )))
             }
         }
     }
@@ -128,7 +134,7 @@ mod tests {
 
         assert!(result.is_ok());
         assert!(result.as_ref().unwrap().is_some());
-        let (n, addr, _sn) = result.unwrap().unwrap();
+        let (n, addr, _sn, _receive_time) = result.unwrap().unwrap();
         assert!(n >= EchoReplyPacket::minimum_packet_size());
         assert!(addr == Ipv4Addr::new(127, 0, 0, 1));
         socket_mock.should_receive_number_of_messages(1);
