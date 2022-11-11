@@ -1,3 +1,8 @@
+use std::io;
+use std::net::{IpAddr, Ipv4Addr};
+use std::result::Result;
+use std::time::Instant;
+
 use pnet_packet::icmp::{
     echo_reply::EchoReplyPacket,
     echo_request::{
@@ -8,10 +13,6 @@ use pnet_packet::icmp::{
 };
 use pnet_packet::Packet;
 use rand::Rng;
-use std::io;
-use std::net::{IpAddr, Ipv4Addr};
-use std::result::Result;
-use std::time::Instant;
 
 use crate::GenericError;
 use crate::PingError;

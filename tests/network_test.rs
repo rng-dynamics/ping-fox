@@ -1,8 +1,8 @@
 use std::net::Ipv4Addr;
 use std::time::Duration;
+
 use more_asserts as ma;
 
-extern crate ping_rs;
 use ping_rs::*;
 
 #[test]
@@ -14,15 +14,13 @@ fn test_ping_multiple_net() {
 
     let config = Config::new(64);
     println!("test_pint_multiplt_net: 1");
-    let ping = Ping::start(&config, &[ip_example_com, ip_iana_com], 1);
-
-    // std::thread::sleep(std::time::Duration::from_secs(1));
+    let ping = PingRunner::start(&config, &[ip_example_com, ip_iana_com], 1);
 
     println!("test_pint_multiplt_net: 2");
     // we expect two values
-    let frst = ping.next_output().unwrap();
+    let frst = ping.next_ping_output().unwrap();
     println!("test_pint_multiplt_net: 3");
-    let scnd = ping.next_output().unwrap();
+    let scnd = ping.next_ping_output().unwrap();
     println!("test_pint_multiplt_net: 4");
 
     let _ = ping.halt();
@@ -39,5 +37,5 @@ fn test_ping_multiple_net() {
     let ip_2_match_1 = scnd.ip_addr == ip_example_com;
     let ip_2_match_2 = scnd.ip_addr == ip_iana_com;
     assert!(ip_2_match_1 || ip_2_match_2);
-    // assert_gt!(dur_2, Duration::from_secs(0));
+    ma::assert_gt!(scnd.ping_duration, Duration::from_secs(0));
 }

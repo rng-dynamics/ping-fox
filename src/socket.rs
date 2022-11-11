@@ -24,7 +24,8 @@ impl Socket for socket2::Socket {
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use std::io;
+    use super::*;
+
     use std::net::SocketAddr;
     use std::sync::Mutex;
 
