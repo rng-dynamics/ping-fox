@@ -9,12 +9,7 @@ use socket2::{Domain, Protocol, Type};
 
 use crate::*;
 
-pub use crate::ping_error::GenericError;
-
 pub type PingResult<T> = std::result::Result<T, GenericError>;
-
-// payload size, ip address, sequence number
-// type FinalPingDataT = (usize, IpAddr, u16);
 
 pub struct Config {
     channel_size: usize,
@@ -60,7 +55,7 @@ impl PingRunner {
 
         // TODO(as): no unwrap
         let icmpv4 = std::sync::Arc::new(IcmpV4::create());
-        let socket = Arc::new(create_socket(Duration::from_millis(200)).unwrap());
+        let socket = Arc::new(create_socket(Duration::from_millis(2000)).unwrap());
 
         let (send_sync_event_tx, send_sync_event_rx) = ping_send_sync_event_channel();
         let (receive_event_tx, receive_event_rx) = ping_receive_event_channel();
@@ -126,12 +121,10 @@ impl PingRunner {
         if let Err(e) = join_result_1 {
             return Err(e.into());
         }
-        println!("ping.halt() 6");
         if let Err(e) = join_result_2 {
             return Err(e.into());
         }
 
-        println!("ping.halt() done");
         self.states.push(State::Halted);
         Ok(())
     }

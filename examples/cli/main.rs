@@ -12,25 +12,28 @@ fn main() -> Result<(), std::net::AddrParseError> {
     for arg in std::env::args().skip(1) {
         addresses.push(arg.parse::<Ipv4Addr>()?);
     }
-    let config = Config::new(32);
+    let count = addresses.len();
 
+    let config = Config::new(32);
     let ping = PingRunner::start(&config, &addresses, 1);
 
-    match ping.next_ping_output() {
-        Ok(ok) => {
-            let PingOutput {
-                payload_size,
-                ip_addr,
-                sequence_number,
-                ping_duration,
-            } = ok;
-            println!(
-                "Ok {} {} {} {:#?}",
-                payload_size, ip_addr, sequence_number, ping_duration
-            );
-        }
-        Err(e) => {
-            println!("ERROR Err(e): {:?}", e);
+    for _ in 0..count {
+        match ping.next_ping_output() {
+            Ok(ok) => {
+                let PingOutput {
+                    payload_size,
+                    ip_addr,
+                    sequence_number,
+                    ping_duration,
+                } = ok;
+                println!(
+                    "Ok {} {} {} {:#?}",
+                    payload_size, ip_addr, sequence_number, ping_duration
+                );
+            }
+            Err(e) => {
+                println!("ERROR Err(e): {:?}", e);
+            }
         }
     }
 
