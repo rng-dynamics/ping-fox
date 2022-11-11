@@ -20,7 +20,7 @@ pub(crate) struct PingReceiver<S> {
     icmpv4: Arc<IcmpV4>,
     socket: Arc<S>,
 
-    ping_sent_sync_event_rx: Option<PingSentSyncEventReceiver>,
+    // ping_sent_sync_event_rx: Option<PingSentSyncEventReceiver>,
     ping_received_event_tx: PingReceiveEventSender,
 
     halt_tx: mpsc::Sender<()>,
@@ -51,7 +51,7 @@ where
         icmpv4: Arc<IcmpV4>,
         socket: Arc<S>,
         // chan_rx: crate::Receiver,
-        ping_sent_sync_event_rx: PingSentSyncEventReceiver,
+        // ping_sent_sync_event_rx: PingSentSyncEventReceiver,
         ping_received_event_tx: PingReceiveEventSender,
 
         channel_size: usize,
@@ -62,7 +62,7 @@ where
             icmpv4,
             socket,
 
-            ping_sent_sync_event_rx: Some(ping_sent_sync_event_rx),
+            // ping_sent_sync_event_rx: Some(ping_sent_sync_event_rx),
             ping_received_event_tx,
 
             halt_tx,
@@ -106,6 +106,35 @@ where
         join_result
     }
 
+    pub(crate) fn recv(&self) {
+        // TODO: set timeout to rather big (config) value.
+        // (2) Receive on socket.
+        let recv_echo_result = self.icmpv4.try_receive(&*self.socket);
+        match recv_echo_result {
+            Ok(None) => {
+                // Timeout: nothing received.
+                println!("log TRACE: try_receive Ok(None)");
+                self.ping_received_event_tx.send(PingReceiveEvent::Timeout);
+            }
+            Err(e) => {
+                println!("log TRACE: try_receive Err(e)");
+                println!("log ERROR: error receiving icmp: {}", e);
+            }
+            Ok(Some((packet_size, ip_addr, sequence_number, receive_time))) => {
+                println!("log TRACE: try_receive Ok(Some((ip, sn)))");
+                println!("log TRACE: icmpv4 received");
+                // (3) Send ping-received-event.
+                self.ping_received_event_tx
+                    .send(PingReceiveEvent::Data(PingReceiveEventData {
+                        packet_size,
+                        ip_addr,
+                        sequence_number,
+                        receive_time,
+                    }));
+            }
+        }
+    }
+
     pub(crate) fn start(&mut self) {
         if *self.states.last().expect("logic error") != State::New {
             return;
@@ -114,7 +143,7 @@ where
         let icmpv4 = self.icmpv4.clone();
         let socket = self.socket.clone();
 
-        let ping_sent_sync_event_rx = self.ping_sent_sync_event_rx.take().expect("logic error");
+        // let ping_sent_sync_event_rx = self.ping_sent_sync_event_rx.take().expect("logic error");
         let ping_received_event_tx = self.ping_received_event_tx.clone();
 
         let halt_rx = self.halt_rx.take().expect("logic error");
@@ -122,12 +151,12 @@ where
         self.thread_handle = Some(std::thread::spawn(move || {
             'outer: loop {
                 // (1) Wait for sync-event from PingSender.
-                let ping_sent_sync_event_recv = ping_sent_sync_event_rx.recv();
-                if let Err(_) = ping_sent_sync_event_recv {
-                    println!("log INFO: mpsc::Receiver::recv() failed");
-                    break 'outer;
-                }
-                println!("log INFO: mpsc::Receiver::recv() success");
+                // let ping_sent_sync_event_recv = ping_sent_sync_event_rx.recv();
+                // if let Err(_) = ping_sent_sync_event_recv {
+                //     println!("log INFO: mpsc::Receiver::recv() failed");
+                //     break 'outer;
+                // }
+                // println!("log INFO: mpsc::Receiver::recv() success");
 
                 // TODO: set timeout to rather big (config) value.
                 // (2) Receive on socket.
@@ -192,7 +221,7 @@ mod tests {
         let (tx_1, rx_1) = ping_send_sync_event_channel();
         let (tx_2, rx_2) = ping_receive_event_channel();
 
-        let mut ping_receiver = PingReceiver::new(icmpv4, socket_mock, rx_1, tx_2, CHANNEL_SIZE);
+        let mut ping_receiver = PingReceiver::new(icmpv4, socket_mock, tx_2, CHANNEL_SIZE);
 
         assert!(vec![State::New] == ping_receiver.get_states());
         ping_receiver.start();
@@ -214,7 +243,7 @@ mod tests {
         let (tx_1, rx_1) = ping_send_sync_event_channel();
         let (tx_2, rx_2) = ping_receive_event_channel();
 
-        let mut ping_receiver = PingReceiver::new(icmpv4, socket_mock, rx_1, tx_2, CHANNEL_SIZE);
+        let mut ping_receiver = PingReceiver::new(icmpv4, socket_mock, tx_2, CHANNEL_SIZE);
         ping_receiver.start();
 
         drop(ping_receiver);
@@ -233,7 +262,7 @@ mod tests {
         tx_1.send(PingSentSyncEvent).unwrap();
         tx_1.send(PingSentSyncEvent).unwrap();
 
-        let mut ping_receiver = PingReceiver::new(icmpv4, socket_mock, rx_1, tx_2, CHANNEL_SIZE);
+        let mut ping_receiver = PingReceiver::new(icmpv4, socket_mock, tx_2, CHANNEL_SIZE);
         ping_receiver.start();
 
         println!("log TRACE: receive_ping_packets_success: will call next_result");
@@ -264,13 +293,13 @@ mod tests {
             icmpv4.clone(),
             socket_mock.clone(),
             ping_send_event_tx,
-            tx_1,
+            // tx_1,
         );
 
         let ip_127_0_0_1 = Ipv4Addr::new(127, 0, 0, 1);
         ping_sender.start(3, [ip_127_0_0_1].into());
 
-        let mut ping_receiver = PingReceiver::new(icmpv4, socket_mock, rx_1, tx_2, CHANNEL_SIZE);
+        let mut ping_receiver = PingReceiver::new(icmpv4, socket_mock, tx_2, CHANNEL_SIZE);
         ping_receiver.start();
 
         println!("log TRACE: receive_ping_packets_success: will call next_result");
@@ -314,13 +343,13 @@ mod tests {
             icmpv4.clone(),
             socket_mock.clone(),
             ping_sent_event_tx,
-            tx_1,
+            // tx_1,
         );
 
         let ip_127_0_0_1 = Ipv4Addr::new(127, 0, 0, 1);
         ping_sender.start(1, [ip_127_0_0_1].into());
 
-        let mut ping_receiver = PingReceiver::new(icmpv4, socket_mock, rx_1, tx_2, CHANNEL_SIZE);
+        let mut ping_receiver = PingReceiver::new(icmpv4, socket_mock, tx_2, CHANNEL_SIZE);
         ping_receiver.start();
 
         println!("log TRACE: receive_ping_packets_success: will call next_result");
@@ -352,13 +381,13 @@ mod tests {
             icmpv4.clone(),
             socket_mock.clone(),
             ping_sent_event_tx,
-            tx_1,
+            // tx_1,
         );
 
         let ip_127_0_0_1 = Ipv4Addr::new(127, 0, 0, 1);
         ping_sender.start(1, [ip_127_0_0_1].into());
 
-        let mut ping_receiver = PingReceiver::new(icmpv4, socket_mock, rx_1, tx_2, CHANNEL_SIZE);
+        let mut ping_receiver = PingReceiver::new(icmpv4, socket_mock, tx_2, CHANNEL_SIZE);
 
         let _ = ping_sender.halt();
         println!("log TRACE: PingSender.halt() done");

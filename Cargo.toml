@@ -7,3 +7,6 @@ edition = "2021"
 socket2 = { version = "0.4", features = ["all"] }
 pnet_packet = "0.31"
 rand = "0.8"
+
+[dev-dependencies]
+more-asserts = "0.3"

@@ -18,8 +18,7 @@ pub(crate) struct PingSender<S> {
     socket: Arc<S>,
 
     ping_sent_event_tx: PingSendEventSender,
-    ping_sent_sync_event_tx: PingSentSyncEventSender,
-
+    // ping_sent_sync_event_tx: PingSentSyncEventSender,
     halt_tx: mpsc::Sender<()>,
     halt_rx: Option<mpsc::Receiver<()>>,
     thread_handle: Option<JoinHandle<()>>,
@@ -48,7 +47,7 @@ where
         icmpv4: Arc<IcmpV4>,
         socket: Arc<S>,
         ping_sent_event_tx: PingSendEventSender,
-        ping_sent_sync_event_tx: PingSentSyncEventSender,
+        // ping_sent_sync_event_tx: PingSentSyncEventSender,
     ) -> Self {
         let (halt_tx, halt_rx) = mpsc::channel::<()>();
         PingSender {
@@ -56,7 +55,7 @@ where
             icmpv4,
             socket,
             ping_sent_event_tx,
-            ping_sent_sync_event_tx,
+            // ping_sent_sync_event_tx,
             halt_tx,
             halt_rx: Some(halt_rx),
             thread_handle: None,
@@ -80,6 +79,24 @@ where
         join_result
     }
 
+    pub(crate) fn send_one(&self, ip: Ipv4Addr, sequence_number: u16) -> crate::PingResult<()> {
+        // (1) Send ping.
+        let send_echo_result = self
+            .icmpv4
+            .send_one_ping(&*self.socket, &ip, sequence_number)?;
+        let (payload_size, ip_addr, sequence_number, send_time) = send_echo_result;
+
+        // (2.1) Dispatch data to PingDataBuffer
+        self.ping_sent_event_tx.send(PingSendEvent {
+            payload_size,
+            ip_addr,
+            sequence_number,
+            send_time,
+        });
+        println!("log TRACE: PingSender dispatched PingSentEvent");
+        Ok(())
+    }
+
     pub(crate) fn start(&mut self, count: u16, ips: VecDeque<Ipv4Addr>) {
         if *self.states.last().expect("logic error") != State::New {
             return;
@@ -89,7 +106,7 @@ where
         let socket = self.socket.clone();
         let ping_sent_event_tx = self.ping_sent_event_tx.clone();
         let halt_rx = self.halt_rx.take().expect("logic error");
-        let ping_sent_sync_event_tx = self.ping_sent_sync_event_tx.clone();
+        // let ping_sent_sync_event_tx = self.ping_sent_sync_event_tx.clone();
 
         self.thread_handle = Some(std::thread::spawn(move || {
             println!("log TRACE: PingSender thread start with count {}", count);
@@ -119,7 +136,7 @@ where
                     println!("log TRACE: PingSender dispatched PingSentEvent");
 
                     // (2.2) Dispatch sync event.
-                    ping_sent_sync_event_tx.send(PingSentSyncEvent);
+                    // ping_sent_sync_event_tx.send(PingSentSyncEvent);
                     println!("log TRACE: PingSender published SYNC-Event");
 
                     // (3) Check termination.
@@ -162,7 +179,7 @@ mod tests {
             icmpv4,
             socket_mock,
             ping_sent_event_tx,
-            ping_sent_sync_event_tx,
+            // ping_sent_sync_event_tx,
         );
 
         assert!(vec![State::New] == ping_sender.get_states());
@@ -188,7 +205,7 @@ mod tests {
             icmpv4,
             socket_mock,
             ping_sent_event_tx,
-            ping_sent_sync_event_tx,
+            // ping_sent_sync_event_tx,
         );
 
         let ip_127_0_0_1 = Ipv4Addr::new(127, 0, 0, 1);
@@ -211,7 +228,7 @@ mod tests {
             icmpv4,
             socket_mock,
             ping_sent_event_tx,
-            ping_sent_sync_event_tx,
+            // ping_sent_sync_event_tx,
         );
 
         let ip_127_0_0_1 = Ipv4Addr::new(127, 0, 0, 1);
@@ -256,7 +273,7 @@ mod tests {
             icmpv4,
             socket_mock,
             ping_sent_event_tx,
-            ping_sent_sync_event_tx,
+            // ping_sent_sync_event_tx,
         );
 
         let ip_127_0_0_1 = Ipv4Addr::new(127, 0, 0, 1);
@@ -280,7 +297,7 @@ mod tests {
             icmpv4,
             socket_mock,
             ping_sent_event_tx,
-            ping_sent_sync_event_tx,
+            // ping_sent_sync_event_tx,
         );
 
         let _ = ping_sender.halt();
@@ -306,7 +323,7 @@ mod tests {
             icmpv4,
             socket_mock,
             ping_sent_event_tx,
-            ping_sent_sync_event_tx,
+            // ping_sent_sync_event_tx,
         );
 
         let ip_127_0_0_1 = Ipv4Addr::new(127, 0, 0, 1);

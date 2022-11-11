@@ -29,7 +29,7 @@ impl PingDataBuffer {
             send_events: HashMap::new(),
         }
     }
-    pub(crate) fn process(&mut self) {
+    pub(crate) fn update(&mut self) {
         self.process_send_events();
         self.process_receive_events();
     }
