@@ -12,18 +12,20 @@ fn test_ping_multiple_net() {
     // iana.com 192.0.43.8
     let ip_iana_com = Ipv4Addr::new(192, 0, 43, 8);
 
-    let config = Config::new(64);
+    let mut ping_rs = PingRs::new(64);
     println!("test_pint_multiplt_net: 1");
-    let ping = PingRunner::start(&config, &[ip_example_com, ip_iana_com], 1);
+    ping_rs
+        .run(&[ip_example_com, ip_iana_com], 1, Duration::from_secs(1))
+        .unwrap();
 
     println!("test_pint_multiplt_net: 2");
     // we expect two values
-    let frst = ping.next_ping_output().unwrap();
+    let frst = ping_rs.next_ping_output().unwrap();
     println!("test_pint_multiplt_net: 3");
-    let scnd = ping.next_ping_output().unwrap();
+    let scnd = ping_rs.next_ping_output().unwrap();
     println!("test_pint_multiplt_net: 4");
 
-    let _ = ping.halt();
+    let _ = ping_rs.halt();
 
     println!("test_pint_multiplt_net: 5");
 
