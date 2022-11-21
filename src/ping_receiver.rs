@@ -27,7 +27,6 @@ where
     }
 
     pub(crate) fn receive(&self) -> PingResult<()> {
-        // TODO: set timeout to rather big (config) value.
         // (2) Receive on socket.
         let recv_echo_result = self.icmpv4.try_receive(&*self.socket);
         match recv_echo_result {
@@ -61,9 +60,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::event::ping_receive_event_channel;
-    use crate::event::ping_send_event_channel;
-    use crate::ping_sender::PingSender;
+    use crate::PingSender;
     use crate::socket::tests::OnReceive;
     use crate::socket::tests::OnSend;
     use crate::socket::tests::SocketMock;
@@ -82,10 +79,8 @@ mod tests {
         ping_receiver.receive().unwrap();
         ping_receiver.receive().unwrap();
 
-        println!("log TRACE: receive_ping_packets_success: will call next_result");
         let ping_receive_event_1 = rx_2.recv();
         let ping_receive_event_2 = rx_2.recv();
-        println!("log TRACE: receive_ping_packets_success: call next_result done");
 
         assert!(ping_receive_event_1.is_ok());
         assert!(ping_receive_event_2.is_ok());

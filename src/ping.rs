@@ -5,20 +5,17 @@ use std::sync::Arc;
 use std::thread::JoinHandle;
 use std::time::Duration;
 
-use socket2::{Domain, Protocol, Type};
-
-use crate::*;
+use crate::PingError;
+use crate::GenericError;
+use crate::ping_output::*;
+use crate::IcmpV4;
+use crate::socket::*;
+use crate::event::*;
+use crate::PingSender;
+use crate::PingReceiver;
+use crate::PingDataBuffer;
 
 pub type PingResult<T> = std::result::Result<T, GenericError>;
-
-fn create_socket(timeout: Duration) -> Result<socket2::Socket, GenericError> {
-    // TODO: make UDP vs raw socket configurable
-    let socket = socket2::Socket::new(Domain::IPV4, Type::DGRAM, Some(Protocol::ICMPV4))?;
-    socket
-        .set_read_timeout(Some(timeout))
-        .expect("could not set socket timeout");
-    Ok(socket)
-}
 
 struct Inner {
     sender_halt_tx: mpsc::Sender<()>,
@@ -60,7 +57,6 @@ impl PingRs {
         if !self.is_in_state(State::New) {
             return Err(PingError {
                 message: "cannot run() PingRunner when it is not in state New".to_string(),
-                source: None,
             }
             .into());
         }
@@ -71,7 +67,7 @@ impl PingRs {
         }
 
         let icmpv4 = std::sync::Arc::new(IcmpV4::create());
-        let socket = Arc::new(create_socket(Duration::from_millis(2000))?);
+        let socket = Arc::new(create_socket2_dgram_socket(Duration::from_millis(2000))?);
 
         let (send_sync_event_tx, send_sync_event_rx) = ping_send_sync_event_channel();
         let (receive_event_tx, receive_event_rx) = ping_receive_event_channel();
@@ -112,10 +108,13 @@ impl PingRs {
     }
 
     pub fn next_ping_output(&self) -> PingResult<PingOutput> {
-        let inner = self.inner.as_ref().ok_or_else(|| PingError {
-            message: "PingRs not running".into(),
-            source: None,
-        })?;
+        if !self.is_in_state(State::Running) {
+            return Err(PingError {
+                message: "cannot next_ping_output() when PingRunner is not in state Running".to_string(),
+            }
+            .into());
+        }
+        let inner = self.inner.as_ref().expect("logic error");
         Ok(inner.ping_output_rx.recv()?)
     }
 
@@ -169,8 +168,6 @@ impl PingRs {
         std::thread::spawn(move || {
             'outer: loop {
                 // (1) Wait for sync-event from PingSender.
-                // TODO(as): actually when we receive an unexpected message we should do one more
-                // receive.
                 let ping_sent_sync_event_recv = ping_send_sync_event_rx.recv();
 
                 if let Err(_) = ping_sent_sync_event_recv {
@@ -242,7 +239,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn ping_localhost_succeeds() {
+    fn ping_localhost_succeed() {
         let channel_size = 8;
         let ips = [Ipv4Addr::new(127, 0, 0, 1)];
         let count = 1;

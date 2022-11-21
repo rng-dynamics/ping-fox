@@ -14,6 +14,5 @@ pub(crate) type PingOutputSender = mpsc::SyncSender<PingOutput>;
 pub(crate) type PingOutputReceiver = mpsc::Receiver<PingOutput>;
 
 pub(crate) fn ping_output_channel() -> (PingOutputSender, PingOutputReceiver) {
-    // TODO: config
     mpsc::sync_channel(1024)
 }

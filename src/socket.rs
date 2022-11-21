@@ -1,4 +1,7 @@
 use std::io;
+use std::time::Duration;
+
+use socket2::{Domain, Protocol, Type};
 
 pub(crate) trait Socket: Send + Sync {
     fn send_to(&self, buf: &[u8], addr: &socket2::SockAddr) -> io::Result<usize>;
@@ -20,6 +23,14 @@ impl Socket for socket2::Socket {
     ) -> io::Result<(usize, socket2::SockAddr)> {
         socket2::Socket::recv_from(self, buf)
     }
+}
+
+pub(crate) fn create_socket2_dgram_socket(timeout: Duration) -> Result<socket2::Socket, io::Error> {
+    let socket = socket2::Socket::new(Domain::IPV4, Type::DGRAM, Some(Protocol::ICMPV4))?;
+    socket
+        .set_read_timeout(Some(timeout))
+        .expect("could not set socket timeout");
+    Ok(socket)
 }
 
 #[cfg(test)]

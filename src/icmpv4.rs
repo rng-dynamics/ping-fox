@@ -44,10 +44,9 @@ impl IcmpV4 {
 
         let packet = self.new_icmpv4_packet(sequence_number).ok_or(PingError {
             message: "could not create ICMP package".to_owned(),
-            source: None,
         })?;
 
-        // TODO(as): use interface and mock for getting time
+        // TODO(as): do not use Instant::now() directly.
         let start_time: Instant = Instant::now();
         socket.send_to(packet.packet(), &addr.into())?;
 
@@ -57,14 +56,14 @@ impl IcmpV4 {
     pub(crate) fn try_receive<S>(
         &self,
         socket: &S,
-    ) -> std::result::Result<Option<(usize, IpAddr, u16, Instant)>, GenericError>
+    ) -> std::result::Result<Option<(usize, IpAddr, u16, Instant)>, io::Error>
     where
         S: crate::Socket,
     {
         let mut buf1 = [std::mem::MaybeUninit::<u8>::uninit(); 256];
         match socket.recv_from(&mut buf1) {
             Err(e) if e.kind() == io::ErrorKind::WouldBlock => Ok(None),
-            Err(e) => Err(e.into()),
+            Err(e) => Err(e),
             Ok((n, addr)) => {
                 let receive_time: Instant = Instant::now();
                 let buf2: Vec<u8> = buf1

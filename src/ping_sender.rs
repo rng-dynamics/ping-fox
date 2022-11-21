@@ -2,7 +2,8 @@ use std::net::Ipv4Addr;
 use std::sync::Arc;
 
 use crate::event::*;
-use crate::icmpv4::IcmpV4;
+use crate::IcmpV4;
+use crate::PingResult;
 
 pub(crate) struct PingSender<S> {
     icmpv4: Arc<IcmpV4>,
@@ -26,7 +27,7 @@ where
         }
     }
 
-    pub(crate) fn send_one(&self, ip: Ipv4Addr, sequence_number: u16) -> crate::PingResult<()> {
+    pub(crate) fn send_one(&self, ip: Ipv4Addr, sequence_number: u16) -> PingResult<()> {
         // (1) Send ping.
         let (payload_size, ip_addr, sequence_number, send_time) =
             self.icmpv4
