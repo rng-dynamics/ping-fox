@@ -1,38 +1,41 @@
-extern crate ping_rs;
-
 use std::net::Ipv4Addr;
+use std::time::Duration;
 
-use ping_rs::Config;
-use ping_rs::Ping;
-use ping_rs::PingResult;
+use ping_rs::PingRs;
+// use ping_rs::PingResult;
+use ping_rs::PingOutput;
 
 fn main() -> Result<(), std::net::AddrParseError> {
-    println!("cli/main.rs");
-
     let mut addresses = Vec::<Ipv4Addr>::new();
     for arg in std::env::args().skip(1) {
         addresses.push(arg.parse::<Ipv4Addr>()?);
     }
-    let config = Config::new(64);
+    let count = addresses.len();
 
-    let ping = Ping::start(&config, &addresses, 1);
+    let mut ping_rs = PingRs::new(32);
+    ping_rs.run(&addresses, 1, Duration::from_secs(1)).unwrap();
 
-    std::thread::sleep(std::time::Duration::from_secs(1));
-    println!("cli/main.rs # 1");
-
-    match ping.next_result() {
-        Ok((n, ip, sn)) => {
-            println!("Ok {} {} {}", n, ip, sn);
-        }
-        Err(e) => {
-            println!("ERROR Err(e): {:?}", e);
+    for _ in 0..count {
+        match ping_rs.next_ping_output() {
+            Ok(ok) => {
+                let PingOutput {
+                    package_size: payload_size,
+                    ip_addr,
+                    sequence_number,
+                    ping_duration,
+                } = ok;
+                println!(
+                    "Ok {} {} {} {:#?}",
+                    payload_size, ip_addr, sequence_number, ping_duration
+                );
+            }
+            Err(e) => {
+                println!("ERROR Err(e): {:?}", e);
+            }
         }
     }
-    // std::thread::sleep(std::time::Duration::from_secs(1));
 
-    println!("cli/main.rs # 2");
-
-    let _ = ping.halt();
+    let _ = ping_rs.halt();
 
     Ok(())
 }

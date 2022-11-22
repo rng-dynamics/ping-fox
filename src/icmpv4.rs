@@ -1,3 +1,8 @@
+use std::io;
+use std::net::{IpAddr, Ipv4Addr};
+use std::result::Result;
+use std::time::Instant;
+
 use pnet_packet::icmp::{
     echo_reply::EchoReplyPacket,
     echo_request::{
@@ -8,12 +13,7 @@ use pnet_packet::icmp::{
 };
 use pnet_packet::Packet;
 use rand::Rng;
-use std::io;
-use std::net::{IpAddr, Ipv4Addr};
-use std::result::Result;
-use std::time::Instant;
 
-use crate::GenericError;
 use crate::PingError;
 
 const PAYLOAD_SIZE: usize = 56;
@@ -41,14 +41,13 @@ impl IcmpV4 {
         let ip_addr = IpAddr::V4(*ipv4);
         let addr = std::net::SocketAddr::new(ip_addr, 0);
 
-        let packet = self.new_icmpv4_packet(sequence_number).ok_or(PingError {
+        let package = self.new_icmpv4_package(sequence_number).ok_or(PingError {
             message: "could not create ICMP package".to_owned(),
-            source: None,
         })?;
 
-        // TODO(as): use interface and mock for getting time
+        // TODO(as): do not use Instant::now() directly.
         let start_time: Instant = Instant::now();
-        socket.send_to(packet.packet(), &addr.into())?;
+        socket.send_to(package.packet(), &addr.into())?;
 
         Ok((PAYLOAD_SIZE, ip_addr, sequence_number, start_time))
     }
@@ -56,44 +55,50 @@ impl IcmpV4 {
     pub(crate) fn try_receive<S>(
         &self,
         socket: &S,
-    ) -> std::result::Result<Option<(usize, IpAddr, u16)>, GenericError>
+    ) -> std::result::Result<Option<(usize, IpAddr, u16, Instant)>, io::Error>
     where
         S: crate::Socket,
     {
         let mut buf1 = [std::mem::MaybeUninit::<u8>::uninit(); 256];
         match socket.recv_from(&mut buf1) {
             Err(e) if e.kind() == io::ErrorKind::WouldBlock => Ok(None),
-            Err(e) => Err(e.into()),
+            Err(e) => Err(e),
             Ok((n, addr)) => {
+                let receive_time: Instant = Instant::now();
                 let buf2: Vec<u8> = buf1
                     .iter()
                     .take(n)
                     .map(|&b| unsafe { b.assume_init() })
                     .collect();
-                let echo_reply_packet =
-                    EchoReplyPacket::new(&buf2).expect("could not initialize echo reply packet");
-                let sn = echo_reply_packet.get_sequence_number();
+                let echo_reply_package =
+                    EchoReplyPacket::new(&buf2).expect("could not initialize echo reply package");
+                let sn = echo_reply_package.get_sequence_number();
                 // To get TTL we will need to create the socket with Protocol::IPV4
-                Ok(Some((n, addr.as_socket().expect("logic error").ip(), sn)))
+                Ok(Some((
+                    n,
+                    addr.as_socket().expect("logic error").ip(),
+                    sn,
+                    receive_time,
+                )))
             }
         }
     }
 
-    fn new_icmpv4_packet(
+    fn new_icmpv4_package(
         &self,
         sequence_number: u16,
     ) -> Option<MutableEchoRequestPacketV4<'static>> {
         let buf = vec![0u8; EchoRequestPacketV4::minimum_packet_size() + PAYLOAD_SIZE];
-        let mut packet = MutableEchoRequestPacketV4::owned(buf)?;
-        packet.set_sequence_number(sequence_number);
-        packet.set_identifier(0);
-        packet.set_icmp_type(IcmpTypes::EchoRequest);
-        packet.set_payload(&self.payload);
+        let mut package = MutableEchoRequestPacketV4::owned(buf)?;
+        package.set_sequence_number(sequence_number);
+        package.set_identifier(0);
+        package.set_icmp_type(IcmpTypes::EchoRequest);
+        package.set_payload(&self.payload);
 
-        packet.set_checksum(0_u16);
-        let checksum = pnet_packet::icmp::checksum(&IcmpPacket::new(packet.packet())?);
-        packet.set_checksum(checksum);
-        Some(packet)
+        package.set_checksum(0_u16);
+        let checksum = pnet_packet::icmp::checksum(&IcmpPacket::new(package.packet())?);
+        package.set_checksum(checksum);
+        Some(package)
     }
 }
 
@@ -128,7 +133,7 @@ mod tests {
 
         assert!(result.is_ok());
         assert!(result.as_ref().unwrap().is_some());
-        let (n, addr, _sn) = result.unwrap().unwrap();
+        let (n, addr, _sn, _receive_time) = result.unwrap().unwrap();
         assert!(n >= EchoReplyPacket::minimum_packet_size());
         assert!(addr == Ipv4Addr::new(127, 0, 0, 1));
         socket_mock.should_receive_number_of_messages(1);

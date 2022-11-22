@@ -1,4 +1,7 @@
 use std::io;
+use std::time::Duration;
+
+use socket2::{Domain, Protocol, Type};
 
 pub(crate) trait Socket: Send + Sync {
     fn send_to(&self, buf: &[u8], addr: &socket2::SockAddr) -> io::Result<usize>;
@@ -22,9 +25,18 @@ impl Socket for socket2::Socket {
     }
 }
 
+pub(crate) fn create_socket2_dgram_socket(timeout: Duration) -> Result<socket2::Socket, io::Error> {
+    let socket = socket2::Socket::new(Domain::IPV4, Type::DGRAM, Some(Protocol::ICMPV4))?;
+    socket
+        .set_read_timeout(Some(timeout))
+        .expect("could not set socket timeout");
+    Ok(socket)
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
-    use std::io;
+    use super::*;
+
     use std::net::SocketAddr;
     use std::sync::Mutex;
 
@@ -130,21 +142,21 @@ pub(crate) mod tests {
             *received_cnt += 1;
 
             let buf2 = vec![0u8; EchoReplyPacket::minimum_packet_size() + payload.len()];
-            let mut packet: MutableEchoReplyPacket<'_> =
+            let mut package: MutableEchoReplyPacket<'_> =
                 MutableEchoReplyPacket::owned(buf2).unwrap();
-            packet.set_icmp_type(IcmpType::new(0)); // echo reply
-            packet.set_icmp_code(IcmpCode::new(0)); // echo reply
-            packet.set_identifier(0xABCD_u16);
-            packet.set_sequence_number(0);
-            packet.set_payload(&payload);
-            packet.set_checksum(0_u16);
-            packet.set_checksum(checksum(&IcmpPacket::new(packet.packet()).unwrap()));
-            for (i, b) in packet.packet().iter().enumerate() {
+            package.set_icmp_type(IcmpType::new(0)); // echo reply
+            package.set_icmp_code(IcmpCode::new(0)); // echo reply
+            package.set_identifier(0xABCD_u16);
+            package.set_sequence_number(0);
+            package.set_payload(&payload);
+            package.set_checksum(0_u16);
+            package.set_checksum(checksum(&IcmpPacket::new(package.packet()).unwrap()));
+            for (i, b) in package.packet().iter().enumerate() {
                 buf[i].write(*b);
             }
 
             Ok((
-                packet.packet_size(),
+                package.packet_size(),
                 "127.0.0.1:12345".parse::<SocketAddr>().unwrap().into(),
             ))
         }
