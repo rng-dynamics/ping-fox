@@ -35,6 +35,7 @@ pub enum State {
 pub struct PingRs {
     states: Vec<State>,
     inner: Option<Inner>,
+    channel_size: usize,
 }
 
 impl Drop for PingRs {
@@ -50,6 +51,7 @@ impl PingRs {
         Self {
             states: vec![State::New],
             inner: None,
+            channel_size,
         }
     }
 
@@ -69,10 +71,11 @@ impl PingRs {
         let icmpv4 = std::sync::Arc::new(IcmpV4::create());
         let socket = Arc::new(create_socket2_dgram_socket(Duration::from_millis(2000))?);
 
-        let (send_sync_event_tx, send_sync_event_rx) = ping_send_sync_event_channel();
-        let (receive_event_tx, receive_event_rx) = ping_receive_event_channel();
-        let (send_event_tx, send_event_rx) = ping_send_event_channel();
-        let (ping_output_tx, ping_output_rx) = ping_output_channel();
+        let (send_sync_event_tx, send_sync_event_rx) =
+            ping_send_sync_event_channel(self.channel_size);
+        let (receive_event_tx, receive_event_rx) = ping_receive_event_channel(self.channel_size);
+        let (send_event_tx, send_event_rx) = ping_send_event_channel(self.channel_size);
+        let (ping_output_tx, ping_output_rx) = ping_output_channel(self.channel_size);
 
         let ping_sender = PingSender::new(icmpv4.clone(), socket.clone(), send_event_tx);
         let ping_receiver = PingReceiver::new(icmpv4, socket, receive_event_tx);

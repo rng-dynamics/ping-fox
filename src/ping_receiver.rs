@@ -66,6 +66,8 @@ mod tests {
     use crate::PingSender;
     use std::net::Ipv4Addr;
 
+    const CHANNEL_SIZE: usize = 8;
+
     #[test]
     fn receive_ping_packets_success_1() {
         let socket_mock = Arc::new(SocketMock::new(
@@ -73,7 +75,7 @@ mod tests {
             OnReceive::ReturnDefault(2),
         ));
         let icmpv4 = Arc::new(IcmpV4::create());
-        let (tx_2, rx_2) = ping_receive_event_channel();
+        let (tx_2, rx_2) = ping_receive_event_channel(CHANNEL_SIZE);
 
         let ping_receiver = PingReceiver::new(icmpv4, socket_mock, tx_2);
         ping_receiver.receive().unwrap();
@@ -94,8 +96,8 @@ mod tests {
         ));
         let icmpv4 = Arc::new(IcmpV4::create());
 
-        let (tx_2, rx_2) = ping_receive_event_channel();
-        let (ping_send_event_tx, _ping_send_event_rx) = ping_send_event_channel();
+        let (tx_2, rx_2) = ping_receive_event_channel(CHANNEL_SIZE);
+        let (ping_send_event_tx, _ping_send_event_rx) = ping_send_event_channel(CHANNEL_SIZE);
 
         let ping_sender = PingSender::new(icmpv4.clone(), socket_mock.clone(), ping_send_event_tx);
 
@@ -133,8 +135,8 @@ mod tests {
             OnReceive::ReturnWouldBlock,
         ));
         let icmpv4 = Arc::new(IcmpV4::create());
-        let (tx_2, rx_2) = ping_receive_event_channel();
-        let (ping_sent_event_tx, _ping_sent_event_rx) = ping_send_event_channel();
+        let (tx_2, rx_2) = ping_receive_event_channel(CHANNEL_SIZE);
+        let (ping_sent_event_tx, _ping_sent_event_rx) = ping_send_event_channel(CHANNEL_SIZE);
         let ping_sender = PingSender::new(icmpv4.clone(), socket_mock.clone(), ping_sent_event_tx);
         let ip_127_0_0_1 = Ipv4Addr::new(127, 0, 0, 1);
         ping_sender.send_one(ip_127_0_0_1, 0).unwrap();

@@ -20,7 +20,6 @@ impl PingDataBuffer {
         ping_receive_event_rx: PingReceiveEventReceiver,
         ping_output_tx: PingOutputSender,
     ) -> Self {
-        // let (ping_output_tx, ping_output_rx) = mpsc::sync_channel(1024);
         Self {
             ping_send_event_rx,
             ping_receive_event_rx,

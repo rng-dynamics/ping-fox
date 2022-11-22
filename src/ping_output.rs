@@ -13,6 +13,6 @@ pub struct PingOutput {
 pub(crate) type PingOutputSender = mpsc::SyncSender<PingOutput>;
 pub(crate) type PingOutputReceiver = mpsc::Receiver<PingOutput>;
 
-pub(crate) fn ping_output_channel() -> (PingOutputSender, PingOutputReceiver) {
-    mpsc::sync_channel(1024)
+pub(crate) fn ping_output_channel(channel_size: usize) -> (PingOutputSender, PingOutputReceiver) {
+    mpsc::sync_channel(channel_size)
 }

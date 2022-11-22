@@ -52,6 +52,8 @@ mod tests {
     use crate::socket::tests::SocketMock;
     use std::sync::mpsc;
 
+    const CHANNEL_SIZE: usize = 8;
+
     #[test]
     fn send_ping_packets_success() {
         let socket_mock = Arc::new(SocketMock::new(
@@ -59,7 +61,7 @@ mod tests {
             OnReceive::ReturnWouldBlock,
         ));
         let icmpv4 = Arc::new(IcmpV4::create());
-        let (ping_sent_event_tx, ping_sent_event_rx) = ping_send_event_channel();
+        let (ping_sent_event_tx, ping_sent_event_rx) = ping_send_event_channel(CHANNEL_SIZE);
 
         let ping_sender = PingSender::new(icmpv4, socket_mock, ping_sent_event_tx);
 
@@ -98,7 +100,7 @@ mod tests {
             OnReceive::ReturnWouldBlock,
         ));
         let icmpv4 = Arc::new(IcmpV4::create());
-        let (ping_sent_event_tx, ping_sent_event_rx) = ping_send_event_channel();
+        let (ping_sent_event_tx, ping_sent_event_rx) = ping_send_event_channel(CHANNEL_SIZE);
 
         let ping_sender = PingSender::new(icmpv4, socket_mock, ping_sent_event_tx);
 
