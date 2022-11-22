@@ -111,11 +111,9 @@ mod tests {
         ping_receiver.receive().unwrap();
         ping_receiver.receive().unwrap();
 
-        tracing::trace!("receive_ping_packages_success: will call next_result");
         let ping_receiver_result_1 = rx_2.recv();
         let ping_receiver_result_2 = rx_2.recv();
         let ping_receiver_result_3 = rx_2.recv();
-        tracing::trace!("receive_ping_packages_success: call next_result done");
 
         assert!(matches!(
             ping_receiver_result_1.unwrap(),
