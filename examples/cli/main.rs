@@ -19,7 +19,7 @@ fn main() -> Result<(), std::net::AddrParseError> {
         match ping_rs.next_ping_output() {
             Ok(ok) => {
                 let PingOutput {
-                    payload_size,
+                    package_size: payload_size,
                     ip_addr,
                     sequence_number,
                     ping_duration,

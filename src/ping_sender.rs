@@ -55,7 +55,7 @@ mod tests {
     const CHANNEL_SIZE: usize = 8;
 
     #[test]
-    fn send_ping_packets_success() {
+    fn send_ping_packages_success() {
         let socket_mock = Arc::new(SocketMock::new(
             OnSend::ReturnDefault,
             OnReceive::ReturnWouldBlock,

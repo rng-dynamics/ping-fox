@@ -51,7 +51,7 @@ impl PingDataBuffer {
             match ping_receive_event {
                 PingReceiveEvent::Data(receive_data) => {
                     let PingReceiveEventData {
-                        packet_size,
+                        package_size,
                         ip_addr,
                         sequence_number,
                         receive_time,
@@ -60,9 +60,9 @@ impl PingDataBuffer {
                         None => {
                             // TODO
                         }
-                        Some(&(payload_size, send_time)) => {
+                        Some(&(_payload_size, send_time)) => {
                             let send_result = self.ping_output_tx.send(PingOutput {
-                                payload_size,
+                                package_size,
                                 ip_addr,
                                 sequence_number,
                                 ping_duration: receive_time - send_time,

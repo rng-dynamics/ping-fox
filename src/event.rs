@@ -27,7 +27,7 @@ pub(crate) fn ping_send_event_channel(
 
 #[derive(PartialEq, Eq)]
 pub(crate) struct PingReceiveEventData {
-    pub packet_size: usize,
+    pub package_size: usize,
     pub ip_addr: IpAddr,
     pub sequence_number: u16,
     pub receive_time: Instant,

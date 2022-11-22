@@ -40,13 +40,13 @@ where
                 tracing::trace!("try_receive Err(e)");
                 tracing::error!("error receiving icmp: {}", e);
             }
-            Ok(Some((packet_size, ip_addr, sequence_number, receive_time))) => {
+            Ok(Some((package_size, ip_addr, sequence_number, receive_time))) => {
                 tracing::trace!("try_receive Ok(Some((ip, sn)))");
                 tracing::trace!("icmpv4 received");
                 // (3) Send ping-received-event.
                 self.ping_received_event_tx
                     .send(PingReceiveEvent::Data(PingReceiveEventData {
-                        packet_size,
+                        package_size: package_size,
                         ip_addr,
                         sequence_number,
                         receive_time,
@@ -69,7 +69,7 @@ mod tests {
     const CHANNEL_SIZE: usize = 8;
 
     #[test]
-    fn receive_ping_packets_success_1() {
+    fn receive_ping_packages_success_1() {
         let socket_mock = Arc::new(SocketMock::new(
             OnSend::ReturnDefault,
             OnReceive::ReturnDefault(2),
@@ -89,7 +89,7 @@ mod tests {
     }
 
     #[test]
-    fn receive_ping_packets_success_2() {
+    fn receive_ping_packages_success_2() {
         let socket_mock = Arc::new(SocketMock::new(
             OnSend::ReturnDefault,
             OnReceive::ReturnDefault(2),
@@ -111,11 +111,11 @@ mod tests {
         ping_receiver.receive().unwrap();
         ping_receiver.receive().unwrap();
 
-        tracing::trace!("receive_ping_packets_success: will call next_result");
+        tracing::trace!("receive_ping_packages_success: will call next_result");
         let ping_receiver_result_1 = rx_2.recv();
         let ping_receiver_result_2 = rx_2.recv();
         let ping_receiver_result_3 = rx_2.recv();
-        tracing::trace!("receive_ping_packets_success: call next_result done");
+        tracing::trace!("receive_ping_packages_success: call next_result done");
 
         assert!(matches!(
             ping_receiver_result_1.unwrap(),

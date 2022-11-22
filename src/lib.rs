@@ -10,7 +10,6 @@ mod ping_receiver;
 mod ping_sender;
 mod socket;
 
-use event::*;
 use icmpv4::*;
 pub use ping::*;
 use ping_data_buffer::*;

@@ -4,7 +4,7 @@ use std::time::Duration;
 
 #[derive(Debug)]
 pub struct PingOutput {
-    pub payload_size: usize,
+    pub package_size: usize,
     pub ip_addr: IpAddr,
     pub sequence_number: u16,
     pub ping_duration: Duration,
