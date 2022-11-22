@@ -5,15 +5,15 @@ use std::sync::Arc;
 use std::thread::JoinHandle;
 use std::time::Duration;
 
-use crate::PingError;
-use crate::GenericError;
-use crate::ping_output::*;
-use crate::IcmpV4;
-use crate::socket::*;
 use crate::event::*;
-use crate::PingSender;
-use crate::PingReceiver;
+use crate::ping_output::*;
+use crate::socket::*;
+use crate::GenericError;
+use crate::IcmpV4;
 use crate::PingDataBuffer;
+use crate::PingError;
+use crate::PingReceiver;
+use crate::PingSender;
 
 pub type PingResult<T> = std::result::Result<T, GenericError>;
 
@@ -110,7 +110,8 @@ impl PingRs {
     pub fn next_ping_output(&self) -> PingResult<PingOutput> {
         if !self.is_in_state(State::Running) {
             return Err(PingError {
-                message: "cannot next_ping_output() when PingRunner is not in state Running".to_string(),
+                message: "cannot next_ping_output() when PingRunner is not in state Running"
+                    .to_string(),
             }
             .into());
         }
@@ -171,14 +172,14 @@ impl PingRs {
                 let ping_sent_sync_event_recv = ping_send_sync_event_rx.recv();
 
                 if let Err(_) = ping_sent_sync_event_recv {
-                    println!("log INFO: mpsc::Receiver::recv() failed");
+                    tracing::info!("mpsc::Receiver::recv() failed");
                     break 'outer;
                 }
 
                 // (2) receive ping and update ping buffer
                 let receive_result = ping_receiver.receive();
                 if let Err(_) = receive_result {
-                    println!("log ERROR: PingReceiver::receive() failed");
+                    tracing::error!("PingReceiver::receive() failed");
                     break 'outer;
                 }
                 ping_data_buffer.update();
@@ -201,21 +202,21 @@ impl PingRs {
         interval: Duration,
     ) -> JoinHandle<()> {
         std::thread::spawn(move || {
-            println!("log TRACE: PingSender thread start with count {}", count);
+            tracing::trace!("PingSender thread start with count {}", count);
             'outer: for sequence_number in 0..count {
-                println!("log TRACE: PingSender outer loop start");
+                tracing::trace!("PingSender outer loop start");
                 for ip in &ips {
-                    println!("log TRACE: PingSender inner loop start");
+                    tracing::trace!("PingSender inner loop start");
                     if ping_sender.send_one(*ip, sequence_number).is_err() {
-                        println!("log ERROR: PingSender::send_one() failed");
+                        tracing::error!("PingSender::send_one() failed");
                         break 'outer;
                     }
                     // (2.2) Dispatch sync event.
                     if ping_send_sync_event_tx.send(PingSentSyncEvent).is_err() {
-                        println!("log ERROR: mpsc::SyncSender::send() failed");
+                        tracing::error!("mpsc::SyncSender::send() failed");
                         break 'outer;
                     }
-                    println!("log TRACE: PingSender published SYNC-Event");
+                    tracing::trace!("PingSender published SYNC-Event");
 
                     // (3) Check termination.
                     match halt_rx.try_recv() {
@@ -225,11 +226,11 @@ impl PingRs {
                 }
                 if sequence_number < count - 1 {
                     // (4) Sleep according to configuration
-                    println!("log TRACE: PingSender will sleep");
+                    tracing::trace!("PingSender will sleep");
                     std::thread::sleep(interval);
                 }
             }
-            println!("log TRACE: PingSender thread end");
+            tracing::trace!("PingSender thread end");
         })
     }
 }
@@ -291,7 +292,7 @@ mod tests {
         assert!(vec![State::New, State::Halted] == ping.get_states());
     }
 
-        #[test]
+    #[test]
     fn calling_start_a_second_time_is_ignored() {
         let channel_size = 8;
         let ips_127_0_0_1 = [Ipv4Addr::new(127, 0, 0, 1)];

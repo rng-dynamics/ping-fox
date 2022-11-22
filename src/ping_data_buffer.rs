@@ -69,7 +69,7 @@ impl PingDataBuffer {
                                 ping_duration: receive_time - send_time,
                             });
                             if let Err(e) = send_result {
-                                println!("log ERROR: failed to send on PingOutput channel: {}", e);
+                                tracing::error!("failed to send on PingOutput channel: {}", e);
                             }
                             self.send_events.remove(&(sequence_number, ip_addr));
                         }

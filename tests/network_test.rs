@@ -2,11 +2,17 @@ use std::net::Ipv4Addr;
 use std::time::Duration;
 
 use more_asserts as ma;
+use tracing::Level;
+use tracing_subscriber::FmtSubscriber;
 
 use ping_rs::*;
 
 #[test]
 fn test_ping_multiple_net() {
+    let subscriber = FmtSubscriber::builder()
+        .with_max_level(Level::TRACE)
+        .finish();
+    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
     // example.com 93.184.216.34
     let ip_example_com = Ipv4Addr::new(93, 184, 216, 34);
     // iana.com 192.0.43.8

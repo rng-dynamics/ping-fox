@@ -32,17 +32,17 @@ where
         match recv_echo_result {
             Ok(None) => {
                 // Timeout: nothing received.
-                println!("log TRACE: try_receive Ok(None)");
+                tracing::trace!("try_receive Ok(None)");
                 self.ping_received_event_tx
                     .send(PingReceiveEvent::Timeout)?;
             }
             Err(e) => {
-                println!("log TRACE: try_receive Err(e)");
-                println!("log ERROR: error receiving icmp: {}", e);
+                tracing::trace!("try_receive Err(e)");
+                tracing::error!("error receiving icmp: {}", e);
             }
             Ok(Some((packet_size, ip_addr, sequence_number, receive_time))) => {
-                println!("log TRACE: try_receive Ok(Some((ip, sn)))");
-                println!("log TRACE: icmpv4 received");
+                tracing::trace!("try_receive Ok(Some((ip, sn)))");
+                tracing::trace!("icmpv4 received");
                 // (3) Send ping-received-event.
                 self.ping_received_event_tx
                     .send(PingReceiveEvent::Data(PingReceiveEventData {
@@ -60,10 +60,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::PingSender;
     use crate::socket::tests::OnReceive;
     use crate::socket::tests::OnSend;
     use crate::socket::tests::SocketMock;
+    use crate::PingSender;
     use std::net::Ipv4Addr;
 
     #[test]
@@ -109,11 +109,11 @@ mod tests {
         ping_receiver.receive().unwrap();
         ping_receiver.receive().unwrap();
 
-        println!("log TRACE: receive_ping_packets_success: will call next_result");
+        tracing::trace!("receive_ping_packets_success: will call next_result");
         let ping_receiver_result_1 = rx_2.recv();
         let ping_receiver_result_2 = rx_2.recv();
         let ping_receiver_result_3 = rx_2.recv();
-        println!("log TRACE: receive_ping_packets_success: call next_result done");
+        tracing::trace!("receive_ping_packets_success: call next_result done");
 
         assert!(matches!(
             ping_receiver_result_1.unwrap(),
