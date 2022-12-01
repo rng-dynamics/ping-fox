@@ -1,8 +1,8 @@
 use std::net::Ipv4Addr;
 use std::time::Duration;
 
-use ping_rs::PingOutput;
-use ping_rs::PingRs;
+use ping_fox::PingOutput;
+use ping_fox::PingService;
 
 fn main() -> Result<(), std::net::AddrParseError> {
     let mut addresses = Vec::<Ipv4Addr>::new();
@@ -11,11 +11,13 @@ fn main() -> Result<(), std::net::AddrParseError> {
     }
     let count = addresses.len();
 
-    let mut ping_rs = PingRs::new(32);
-    ping_rs.run(&addresses, 1, Duration::from_secs(1)).unwrap();
+    let mut ping_service = PingService::new(32);
+    ping_service
+        .run(&addresses, 1, Duration::from_secs(1))
+        .unwrap();
 
     for _ in 0..count {
-        match ping_rs.next_ping_output() {
+        match ping_service.next_ping_output() {
             Ok(ok) => {
                 let PingOutput {
                     package_size: payload_size,
@@ -34,7 +36,7 @@ fn main() -> Result<(), std::net::AddrParseError> {
         }
     }
 
-    let _ = ping_rs.halt();
+    let _ = ping_service.halt();
 
     Ok(())
 }

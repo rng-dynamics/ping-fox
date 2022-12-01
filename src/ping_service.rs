@@ -32,21 +32,21 @@ pub enum State {
     Halted,
 }
 
-pub struct PingRs {
+pub struct PingService {
     states: Vec<State>,
     inner: Option<Inner>,
     channel_size: usize,
 }
 
-impl Drop for PingRs {
+impl Drop for PingService {
     fn drop(&mut self) {
         if !self.is_in_state(State::Halted) || self.inner.is_some() {
-            panic!("you must call halt on PingRs to clean it up");
+            panic!("you must call halt on PingService to clean it up");
         }
     }
 }
 
-impl PingRs {
+impl PingService {
     pub fn new(channel_size: usize) -> Self {
         Self {
             states: vec![State::New],
@@ -248,12 +248,14 @@ mod tests {
         let ips = [Ipv4Addr::new(127, 0, 0, 1)];
         let count = 1;
 
-        let mut ping = PingRs::new(channel_size);
+        let mut ping_service = PingService::new(channel_size);
 
-        ping.run(&ips, count, Duration::from_secs(1)).unwrap();
-        let output = ping.next_ping_output();
+        ping_service
+            .run(&ips, count, Duration::from_secs(1))
+            .unwrap();
+        let output = ping_service.next_ping_output();
         println!("output received: {:?}", output);
-        let halt_result = ping.halt();
+        let halt_result = ping_service.halt();
 
         assert!(output.is_ok());
         assert!(halt_result.is_ok());
@@ -265,20 +267,22 @@ mod tests {
         let ips = [Ipv4Addr::new(127, 0, 0, 1)];
         let count = 1;
 
-        let mut ping = PingRs::new(channel_size);
-        assert!(vec![State::New] == ping.get_states());
-        ping.run(&ips, count, Duration::from_secs(1)).unwrap();
-        assert!(vec![State::New, State::Running] == ping.get_states());
-        ping.halt().unwrap();
-        assert!(vec![State::New, State::Running, State::Halted] == ping.get_states());
+        let mut ping_service = PingService::new(channel_size);
+        assert!(vec![State::New] == ping_service.get_states());
+        ping_service
+            .run(&ips, count, Duration::from_secs(1))
+            .unwrap();
+        assert!(vec![State::New, State::Running] == ping_service.get_states());
+        ping_service.halt().unwrap();
+        assert!(vec![State::New, State::Running, State::Halted] == ping_service.get_states());
     }
 
     #[test]
-    #[should_panic(expected = "you must call halt on PingRs to clean it up")]
+    #[should_panic(expected = "you must call halt on PingService to clean it up")]
     fn not_calling_halt_may_panic_on_drop() {
         let channel_size = 8;
-        let ping = PingRs::new(channel_size);
-        drop(ping);
+        let ping_service = PingService::new(channel_size);
+        drop(ping_service);
     }
 
     #[test]
@@ -287,12 +291,12 @@ mod tests {
         let ips = [Ipv4Addr::new(127, 0, 0, 1)];
         let count = 1;
 
-        let mut ping = PingRs::new(channel_size);
-        ping.halt().unwrap();
-        let run_result = ping.run(&ips, count, Duration::from_secs(1));
+        let mut ping_service = PingService::new(channel_size);
+        ping_service.halt().unwrap();
+        let run_result = ping_service.run(&ips, count, Duration::from_secs(1));
 
         assert!(run_result.is_err());
-        assert!(vec![State::New, State::Halted] == ping.get_states());
+        assert!(vec![State::New, State::Halted] == ping_service.get_states());
     }
 
     #[test]
@@ -302,13 +306,13 @@ mod tests {
         let ips_254_254_254_254 = [Ipv4Addr::new(254, 254, 254, 254)];
         let count = 1;
 
-        let mut ping = PingRs::new(channel_size);
-        let run_result_1 = ping.run(&ips_127_0_0_1, count, Duration::from_secs(1));
-        let run_result_2 = ping.run(&ips_254_254_254_254, count, Duration::from_secs(1));
+        let mut ping_service = PingService::new(channel_size);
+        let run_result_1 = ping_service.run(&ips_127_0_0_1, count, Duration::from_secs(1));
+        let run_result_2 = ping_service.run(&ips_254_254_254_254, count, Duration::from_secs(1));
 
         assert!(run_result_1.is_ok());
         assert!(run_result_2.is_err());
 
-        ping.halt().unwrap();
+        ping_service.halt().unwrap();
     }
 }

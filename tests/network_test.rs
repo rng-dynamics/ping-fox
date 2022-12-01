@@ -5,7 +5,7 @@ use more_asserts as ma;
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
 
-use ping_rs::*;
+use ping_fox::*;
 
 #[test]
 fn test_ping_multiple_net() {
@@ -18,16 +18,16 @@ fn test_ping_multiple_net() {
     // iana.com 192.0.43.8
     let ip_iana_com = Ipv4Addr::new(192, 0, 43, 8);
 
-    let mut ping_rs = PingRs::new(64);
-    ping_rs
+    let mut ping_service = PingService::new(64);
+    ping_service
         .run(&[ip_example_com, ip_iana_com], 1, Duration::from_secs(1))
         .unwrap();
 
     // we expect two values
-    let frst = ping_rs.next_ping_output().unwrap();
-    let scnd = ping_rs.next_ping_output().unwrap();
+    let frst = ping_service.next_ping_output().unwrap();
+    let scnd = ping_service.next_ping_output().unwrap();
 
-    let _ = ping_rs.halt();
+    let _ = ping_service.halt();
 
     let ip_1_match_1 = frst.ip_addr == ip_example_com;
     let ip_1_match_2 = frst.ip_addr == ip_iana_com;
