@@ -103,7 +103,6 @@ pub(crate) mod tests {
                     "simulating error in mock",
                 ));
             }
-
             self.sent.lock().unwrap().push((
                 buf.to_vec(),
                 addr.as_socket()

@@ -1,5 +1,5 @@
 [package]
-name = "ping-rs"
+name = "ping-fox"
 version = "0.0.0"
 edition = "2021"
 

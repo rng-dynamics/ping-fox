@@ -46,7 +46,7 @@ where
                 // (3) Send ping-received-event.
                 self.ping_received_event_tx
                     .send(PingReceiveEvent::Data(PingReceiveEventData {
-                        package_size: package_size,
+                        package_size,
                         ip_addr,
                         sequence_number,
                         receive_time,
