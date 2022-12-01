@@ -1,8 +1,8 @@
 use std::net::Ipv4Addr;
 use std::time::Duration;
 
-use ping_rs::PingRs;
 use ping_rs::PingOutput;
+use ping_rs::PingRs;
 
 fn main() -> Result<(), std::net::AddrParseError> {
     let mut addresses = Vec::<Ipv4Addr>::new();

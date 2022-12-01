@@ -121,7 +121,7 @@ mod tests {
         assert!(result.is_ok());
         socket_mock
             .should_send_number_of_messages(1)
-            .should_send_to_address(&std::net::SocketAddr::new(IpAddr::V4(addr), 0).into());
+            .should_send_to_address(&IpAddr::V4(addr));
     }
 
     #[test]

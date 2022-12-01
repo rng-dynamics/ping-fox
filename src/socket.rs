@@ -37,6 +37,7 @@ pub(crate) fn create_socket2_dgram_socket(timeout: Duration) -> Result<socket2::
 pub(crate) mod tests {
     use super::*;
 
+    use std::net::IpAddr;
     use std::net::SocketAddr;
     use std::sync::Mutex;
 
@@ -64,7 +65,7 @@ pub(crate) mod tests {
     pub(crate) struct SocketMock {
         on_send: OnSend,
         on_receive: Mutex<OnReceive>,
-        sent: Mutex<Vec<(Vec<u8>, socket2::SockAddr)>>,
+        sent: Mutex<Vec<(Vec<u8>, IpAddr)>>,
         received_cnt: Mutex<usize>,
     }
 
@@ -83,13 +84,8 @@ pub(crate) mod tests {
             self
         }
 
-        pub(crate) fn should_send_to_address(&self, addr: &socket2::SockAddr) -> &Self {
-            assert!(self
-                .sent
-                .lock()
-                .unwrap()
-                .iter()
-                .any(|e| addr.as_socket() == e.1.as_socket()));
+        pub(crate) fn should_send_to_address(&self, addr: &IpAddr) -> &Self {
+            assert!(self.sent.lock().unwrap().iter().any(|e| *addr == e.1));
             self
         }
 
@@ -108,7 +104,17 @@ pub(crate) mod tests {
                 ));
             }
 
-            self.sent.lock().unwrap().push((buf.to_vec(), addr.clone()));
+            self.sent.lock().unwrap().push((
+                buf.to_vec(),
+                addr.as_socket()
+                    .ok_or_else(|| {
+                        io::Error::new(
+                            io::ErrorKind::Other,
+                            "error in extracting IP address from SockAddr",
+                        )
+                    })?
+                    .ip(),
+            ));
             Ok(buf.len())
         }
 
