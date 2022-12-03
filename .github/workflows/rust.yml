@@ -10,6 +10,14 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+
+  rustfmt:
+    name: Check code formatting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: cargo fmt --all -- --check
+
   build:
     runs-on: ubuntu-latest
     steps:
