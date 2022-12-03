@@ -25,7 +25,7 @@ struct Inner {
     ping_output_rx: PingOutputReceiver,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum State {
     New,
     Running,
@@ -86,7 +86,7 @@ impl PingService {
             ping_sender,
             sender_halt_rx,
             count,
-            deque.into(),
+            deque,
             send_sync_event_tx,
             interval,
         );
@@ -140,12 +140,8 @@ impl PingService {
                 None => Ok(()),
             };
 
-            if let Err(e) = join_result_1 {
-                return Err(e.into());
-            }
-            if let Err(e) = join_result_2 {
-                return Err(e.into());
-            }
+            join_result_1?;
+            join_result_2?;
         }
 
         self.states.push(State::Halted);
@@ -174,15 +170,15 @@ impl PingService {
                 // (1) Wait for sync-event from PingSender.
                 let ping_sent_sync_event_recv = ping_send_sync_event_rx.recv();
 
-                if let Err(_) = ping_sent_sync_event_recv {
-                    tracing::info!("mpsc::Receiver::recv() failed");
+                if let Err(e) = ping_sent_sync_event_recv {
+                    tracing::info!("mpsc::Receiver::recv() failed: {}", e);
                     break 'outer;
                 }
 
                 // (2) receive ping and update ping buffer
                 let receive_result = ping_receiver.receive();
-                if let Err(_) = receive_result {
-                    tracing::error!("PingReceiver::receive() failed");
+                if let Err(e) = receive_result {
+                    tracing::error!("PingReceiver::receive() failed: {}", e);
                     break 'outer;
                 }
                 ping_data_buffer.update();
