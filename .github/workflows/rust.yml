@@ -1,4 +1,4 @@
-name: CI
+name: Rust
 
 on:
   push:
@@ -87,7 +87,7 @@ jobs:
         RUN_ID: ${{ github.run_id }}
         PULL_NUMBER: ${{ github.event.pull_request.number }}
       run: |
-        rustup component add llvm-tools-preview # for llvm-profdata
+        rustup component add llvm-tools-preview
         cargo install grcov
         python3 ci_scripts/measure_coverage.py
         total=$(python3 ci_scripts/extract_coverage_value.py)
