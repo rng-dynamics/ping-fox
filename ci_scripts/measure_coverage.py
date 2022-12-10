@@ -26,12 +26,15 @@ def generate_env():
 
 def cargo_test(env):
     print("=== run coverage ===")
-    subprocess.run(
+    p = subprocess.run(
         ["cargo", "+nightly", "test"],
         env=env,
         check=True,
         capture_output=True,
+        text=True
     )
+    print(p.stdout)
+    print(p.stderr)
     print("ok.")
 
 
