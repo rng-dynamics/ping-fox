@@ -55,7 +55,6 @@ jobs:
           ~/.cargo/registry/cache/
           ~/.cargo/git/db/
           target/
-        # key: ${{ runner.os }}-cargo-build-and-test-${{ hashFiles('**/Cargo.lock') }}
         key: ${{ runner.os }}-cargo-build-and-test-${{ hashFiles('**/Cargo.toml') }}
     - name: Build
       run: cargo build --verbose
@@ -79,7 +78,6 @@ jobs:
           ~/.cargo/registry/cache/
           ~/.cargo/git/db/
           target/
-        # key: ${{ runner.os }}-cargo-build-and-test-${{ hashFiles('**/Cargo.lock') }}
         key: ${{ runner.os }}-cargo-measure-coverage-${{ hashFiles('**/Cargo.toml') }}
     - uses: actions-rs/toolchain@v1
       with:
@@ -91,7 +89,6 @@ jobs:
         RUN_ID: ${{ github.run_id }}
         PULL_NUMBER: ${{ github.event.pull_request.number }}
       run: |
-        rustup toolchain list
         cargo install grcov
         python3 ci_scripts/measure_coverage.py
         total=$(python3 ci_scripts/extract_coverage_value.py)
