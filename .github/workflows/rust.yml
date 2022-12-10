@@ -61,3 +61,31 @@ jobs:
       run: cargo build --verbose
     - name: Run tests
       run: cargo test --lib --verbose
+
+  coverage:
+    name: Measure coverage
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Cache
+      id: cache-cargo
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        # key: ${{ runner.os }}-cargo-build-and-test-${{ hashFiles('**/Cargo.lock') }}
+        key: ${{ runner.os }}-cargo-measure-coverage-${{ hashFiles('**/Cargo.toml') }}
+    - name: run
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
+        RUN_ID: ${{ github.run_id }}
+        PULL_NUMBER: ${{ github.event.pull_request.number }}
+      run: |
+      python3 ci_scripts/measure_coverage.py
+      total=$(python3 ci_scripts/extract_coverage_value.py)
+      curl -s "https://rng-dynamics:${GITHUB_TOKEN}@api.github.com/repos/rng-dynamics/ping-fox/statuses/${COMMIT_SHA}" -d "{\"state\": \"success\",\"target_url\": \"https://github.com/rng-dynamics/ping-fox/pull/${PULL_NUMBER}/checks?check_run_id=${RUN_ID}\",\"description\": \"${total}%\",\"context\": \"Measured coverage\"}"
