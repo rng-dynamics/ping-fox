@@ -76,5 +76,5 @@ if __name__ == "__main__":
     cargo_test(env)
     create_report()
     cleanup()
-    print(f"location of coverage report: {destination_dir}")
+    print(f"location of code coverage report: {destination_dir}")
     exit(0)
