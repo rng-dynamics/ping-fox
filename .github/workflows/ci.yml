@@ -79,9 +79,7 @@ jobs:
           ~/.cargo/git/db/
           target/
         key: ${{ runner.os }}-cargo-measure-coverage-${{ hashFiles('**/Cargo.toml') }}
-    - uses: actions-rs/toolchain@v1
-      with:
-        toolchain: nightly
+    - uses: dtolnay/rust-toolchain@nightly
     - name: Create code coverage report
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
