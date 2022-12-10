@@ -1,13 +1,14 @@
 import glob
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 destination_dir = "target/coverage/html"
 output_type = "html"
 
 
-def generate_env():
+def create_instrumentation_env():
     env = os.environ.copy()
     env["CARGO_INCREMENTAL"] = "0"
     env["RUSTFLAGS"] = (
@@ -26,23 +27,20 @@ def generate_env():
 
 def cargo_test(env):
     print("=== run coverage ===")
-    p = subprocess.run(
+    subprocess.run(
         ["cargo", "+nightly", "test", "--lib"],
         env=env,
-        # TODO: cleanup
-        # check=True,
-        capture_output=True,
-        text=True
+        check=True,
+        stdout=sys.stdout,
+        stderr=sys.stderr,
     )
-    print(p.stdout)
-    print(p.stderr)
     print("ok.")
 
 
-def generate_report():
+def create_report():
     print("=== generate report ===")
     Path(destination_dir).mkdir(parents=True, exist_ok=True)
-    p = subprocess.run(
+    subprocess.run(
         [
             "grcov",
             ".",
@@ -60,10 +58,9 @@ def generate_report():
             destination_dir,
         ],
         check=True,
-        capture_output=True,
-        text=True,
+        stdout=sys.stdout,
+        stderr=sys.stderr,
     )
-    print(p.stdout)
     print("ok.")
 
 
@@ -75,8 +72,9 @@ def cleanup():
 
 
 if __name__ == "__main__":
-    env = generate_env()
+    env = create_instrumentation_env()
     cargo_test(env)
-    generate_report()
+    create_report()
     cleanup()
     print(f"location of coverage report: {destination_dir}")
+    exit(0)
