@@ -79,10 +79,7 @@ jobs:
           target/
         # key: ${{ runner.os }}-cargo-build-and-test-${{ hashFiles('**/Cargo.lock') }}
         key: ${{ runner.os }}-cargo-measure-coverage-${{ hashFiles('**/Cargo.toml') }}
-    - uses: actions-rs/toolchain@v1
-      with:
-        toolchain: nightly
-        override: true
+    - uses: dtolnay/rust-toolchain@nightly
     - name: run
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
