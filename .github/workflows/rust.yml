@@ -89,6 +89,7 @@ jobs:
       run: |
         rustup component add llvm-tools-preview
         cargo install grcov
+        cargo clean # coverage does not seem to update without clean
         python3 ci_scripts/measure_coverage.py
         total=$(python3 ci_scripts/extract_coverage_value.py)
         curl -s "https://rng-dynamics:${GITHUB_TOKEN}@api.github.com/repos/rng-dynamics/ping-fox/statuses/${COMMIT_SHA}" -d "{\"state\": \"success\",\"target_url\": \"https://github.com/rng-dynamics/ping-fox/pull/${PULL_NUMBER}/checks?check_run_id=${RUN_ID}\",\"description\": \"${total}\",\"context\": \"Measured coverage\"}"
