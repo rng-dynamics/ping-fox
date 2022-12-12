@@ -12,7 +12,6 @@ def create_instrumentation_env():
     env = os.environ.copy()
     env["CARGO_INCREMENTAL"] = "0"
     env["RUSTFLAGS"] = (
-        " -Zprofile"
         " -Ccodegen-units=1"
         " -Copt-level=0"
         " -Clink-dead-code"
