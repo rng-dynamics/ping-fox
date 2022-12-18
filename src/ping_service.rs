@@ -25,7 +25,7 @@ struct Inner {
     ping_output_rx: PingOutputReceiver,
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, Copy)]
 pub enum State {
     New,
     Running,
@@ -40,9 +40,7 @@ pub struct PingService {
 
 impl Drop for PingService {
     fn drop(&mut self) {
-        if !self.is_in_state(State::Halted) || self.inner.is_some() {
-            panic!("you must call halt on PingService to clean it up");
-        }
+        let _ = self.halt();
     }
 }
 
@@ -55,12 +53,10 @@ impl PingService {
         }
     }
 
-    pub fn run(&mut self, ips: &[Ipv4Addr], count: u16, interval: Duration) -> PingResult<()> {
+    pub fn run(&mut self, ips: &[Ipv4Addr], count: u16, interval: Duration) {
         if !self.is_in_state(State::New) {
-            return Err(PingError {
-                message: "cannot run() PingRunner when it is not in state New".to_string(),
-            }
-            .into());
+            tracing::warn!("cannot run() PingRunner when it is not in state New");
+            return;
         }
 
         let mut deque = VecDeque::<Ipv4Addr>::new();
@@ -69,7 +65,14 @@ impl PingService {
         }
 
         let icmpv4 = std::sync::Arc::new(IcmpV4::create());
-        let socket = Arc::new(create_socket2_dgram_socket(Duration::from_millis(2000))?);
+        // let socket = Arc::new(create_socket2_dgram_socket(Duration::from_millis(2000))?);
+        let socket = match create_socket2_dgram_socket(Duration::from_millis(2000)) {
+            Ok(socket) => Arc::new(socket),
+            Err(e) => {
+                tracing::error!("Error: {}", e);
+                return;
+            }
+        };
 
         let (send_sync_event_tx, send_sync_event_rx) =
             ping_send_sync_event_channel(self.channel_size);
@@ -107,7 +110,6 @@ impl PingService {
             ping_output_rx,
         });
         self.states.push(State::Running);
-        Ok(())
     }
 
     pub fn next_ping_output(&self) -> PingResult<PingOutput> {
@@ -126,6 +128,7 @@ impl PingService {
         if self.is_in_state(State::Halted) {
             return Ok(());
         }
+        self.states.push(State::Halted);
         if let Some(mut inner) = self.inner.take() {
             // mpsc::Sender::send() returns error only if mpsc::Receiver is closed.
             let _maybe_err_1 = inner.sender_halt_tx.send(());
@@ -144,12 +147,11 @@ impl PingService {
             join_result_2?;
         }
 
-        self.states.push(State::Halted);
         Ok(())
     }
 
-    pub fn get_states(&self) -> Vec<State> {
-        self.states.clone()
+    pub fn get_state(&mut self) -> State {
+        *self.states.last().expect("logic error")
     }
 
     fn is_in_state(&self, state: State) -> bool {
@@ -246,9 +248,7 @@ mod tests {
 
         let mut ping_service = PingService::new(channel_size);
 
-        ping_service
-            .run(&ips, count, Duration::from_secs(1))
-            .unwrap();
+        ping_service.run(&ips, count, Duration::from_secs(1));
         let output = ping_service.next_ping_output();
         println!("output received: {:?}", output);
         let halt_result = ping_service.halt();
@@ -258,27 +258,27 @@ mod tests {
     }
 
     #[test]
+    fn ping_service_is_in_state_new_when_constructed() {
+        let channel_size = 8;
+
+        let mut ping_service = PingService::new(channel_size);
+        assert!(State::New == ping_service.get_state());
+
+        ping_service.halt().unwrap();
+    }
+
+    #[test]
     fn entity_states_are_correct() {
         let channel_size = 8;
         let ips = [Ipv4Addr::new(127, 0, 0, 1)];
         let count = 1;
 
         let mut ping_service = PingService::new(channel_size);
-        assert!(vec![State::New] == ping_service.get_states());
-        ping_service
-            .run(&ips, count, Duration::from_secs(1))
-            .unwrap();
-        assert!(vec![State::New, State::Running] == ping_service.get_states());
+        assert!(State::New == ping_service.get_state());
+        ping_service.run(&ips, count, Duration::from_secs(1));
+        assert!(State::Running == ping_service.get_state());
         ping_service.halt().unwrap();
-        assert!(vec![State::New, State::Running, State::Halted] == ping_service.get_states());
-    }
-
-    #[test]
-    #[should_panic(expected = "you must call halt on PingService to clean it up")]
-    fn not_calling_halt_may_panic_on_drop() {
-        let channel_size = 8;
-        let ping_service = PingService::new(channel_size);
-        drop(ping_service);
+        assert!(State::Halted == ping_service.get_state());
     }
 
     #[test]
@@ -288,11 +288,11 @@ mod tests {
         let count = 1;
 
         let mut ping_service = PingService::new(channel_size);
-        ping_service.halt().unwrap();
-        let run_result = ping_service.run(&ips, count, Duration::from_secs(1));
 
-        assert!(run_result.is_err());
-        assert!(vec![State::New, State::Halted] == ping_service.get_states());
+        ping_service.halt().unwrap();
+        assert!(State::Halted == ping_service.get_state());
+        ping_service.run(&ips, count, Duration::from_secs(1));
+        assert!(State::Halted == ping_service.get_state());
     }
 
     #[test]
@@ -303,12 +303,12 @@ mod tests {
         let count = 1;
 
         let mut ping_service = PingService::new(channel_size);
-        let run_result_1 = ping_service.run(&ips_127_0_0_1, count, Duration::from_secs(1));
-        let run_result_2 = ping_service.run(&ips_254_254_254_254, count, Duration::from_secs(1));
+        ping_service.run(&ips_127_0_0_1, count, Duration::from_secs(1));
+        ping_service.run(&ips_254_254_254_254, count, Duration::from_secs(1));
 
-        assert!(run_result_1.is_ok());
-        assert!(run_result_2.is_err());
-
+        let output = ping_service.next_ping_output();
+        assert!(output.is_ok());
+        assert_eq!(output.unwrap().ip_addr, ips_127_0_0_1[0]);
         ping_service.halt().unwrap();
     }
 }

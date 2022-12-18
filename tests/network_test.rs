@@ -19,9 +19,9 @@ fn test_ping_multiple_net() {
     let ip_iana_com = Ipv4Addr::new(192, 0, 43, 8);
 
     let mut ping_service = PingService::new(64);
-    ping_service
-        .run(&[ip_example_com, ip_iana_com], 1, Duration::from_secs(1))
-        .unwrap();
+    ping_service.run(&[ip_example_com, ip_iana_com], 1, Duration::from_secs(1));
+
+    assert!(ping_service.get_state() == State::Running);
 
     // we expect two values
     let frst = ping_service.next_ping_output().unwrap();
