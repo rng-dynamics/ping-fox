@@ -11,10 +11,15 @@ fn main() -> Result<(), std::net::AddrParseError> {
         addresses.push(arg.parse::<Ipv4Addr>()?);
     }
     let count = addresses.len();
-    let config = PingServiceConfig { channel_size: 32 };
 
-    let ping_service =
-        PingService::create_and_run(&addresses, 1, Duration::from_secs(1), config).unwrap();
+    let ping_config = PingServiceConfig {
+        ips: &addresses,
+        count: 1,
+        interval: Duration::from_secs(1),
+        channel_size: 8,
+    };
+
+    let ping_service = PingService::create(ping_config).unwrap();
 
     for _ in 0..count {
         match ping_service.next_ping_output() {

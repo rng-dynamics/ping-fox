@@ -29,7 +29,7 @@ pub struct PingService {
     ping_output_rx: PingOutputReceiver,
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum State {
     Running,
     Halted,
@@ -38,25 +38,23 @@ pub enum State {
 impl Drop for PingService {
     fn drop(&mut self) {
         if let Err(e) = self.halt() {
-            tracing::error!("Error: {:#?}", e);
+            tracing::error!("{:#?}", e);
         }
     }
 }
 
-pub struct PingServiceConfig {
+pub struct PingServiceConfig<'a> {
+    pub ips: &'a [Ipv4Addr],
+    pub count: u16,
+    pub interval: Duration,
     pub channel_size: usize,
 }
 
 impl PingService {
-    // TODO: rename
-    pub fn create_and_run(
-        ips: &[Ipv4Addr],
-        count: u16,
-        interval: Duration,
-        config: PingServiceConfig,
-    ) -> PingResult<Self> {
+    // Create and run ping service.
+    pub fn create<'a>(config: PingServiceConfig<'a>) -> PingResult<Self> {
         let mut deque = VecDeque::<Ipv4Addr>::new();
-        for ip in ips {
+        for ip in config.ips {
             deque.push_back(*ip);
         }
 
@@ -77,10 +75,10 @@ impl PingService {
         let sender_thread = Self::start_sender_thread(
             ping_sender,
             sender_halt_rx,
-            count,
+            config.count,
             deque,
             send_sync_event_tx,
-            interval,
+            config.interval,
         );
 
         let (receiver_halt_tx, receiver_halt_rx) = mpsc::channel::<()>();
@@ -224,26 +222,28 @@ mod tests {
 
     #[test]
     fn ping_localhost_succeeds() {
-        let config = PingServiceConfig { channel_size: 8 };
-        let ips = [Ipv4Addr::new(127, 0, 0, 1)];
-        let count = 1;
+        let ping_config = PingServiceConfig {
+            ips: &[Ipv4Addr::new(127, 0, 0, 1)],
+            count: 1,
+            interval: Duration::from_secs(1),
+            channel_size: 4,
+        };
 
-        let ping_service =
-            PingService::create_and_run(&ips, count, Duration::from_secs(1), config).unwrap();
-        let output = ping_service.next_ping_output();
-        println!("output received: {:?}", output);
-
-        assert!(output.is_ok());
+        let ping_service = PingService::create(ping_config).unwrap();
+        let ping_output = ping_service.next_ping_output();
+        assert!(ping_output.is_ok());
     }
 
     #[test]
     fn halt_succeeds() {
-        let config = PingServiceConfig { channel_size: 8 };
-        let ips = [Ipv4Addr::new(127, 0, 0, 1)];
-        let count = 1;
+        let ping_config = PingServiceConfig {
+            ips: &[Ipv4Addr::new(127, 0, 0, 1)],
+            count: 1,
+            interval: Duration::from_secs(1),
+            channel_size: 4,
+        };
 
-        let mut ping_service =
-            PingService::create_and_run(&ips, count, Duration::from_secs(1), config).unwrap();
+        let mut ping_service = PingService::create(ping_config).unwrap();
         assert!(ping_service.halt().is_ok());
     }
 }
