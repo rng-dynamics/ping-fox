@@ -5,7 +5,27 @@ use ping_fox::PingOutput;
 use ping_fox::PingService;
 use ping_fox::PingServiceConfig;
 
-fn main() -> Result<(), std::net::AddrParseError> {
+type GenericError = Box<dyn std::error::Error + Send + Sync + 'static>;
+#[derive(Debug)]
+struct Error {
+    pub message: String,
+}
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        write!(f, "Error")?;
+        if !self.message.is_empty() {
+            write!(f, ": {}", self.message)?;
+        }
+        Ok(())
+    }
+}
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        None
+    }
+}
+
+fn main() -> Result<(), GenericError> {
     let mut addresses = Vec::<Ipv4Addr>::new();
     for arg in std::env::args().skip(1) {
         addresses.push(arg.parse::<Ipv4Addr>()?);
@@ -19,7 +39,7 @@ fn main() -> Result<(), std::net::AddrParseError> {
         channel_size: 8,
     };
 
-    let ping_service = PingService::create(ping_config).unwrap();
+    let ping_service = PingService::create(ping_config)?;
 
     for _ in 0..count {
         match ping_service.next_ping_output() {
