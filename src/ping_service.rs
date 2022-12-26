@@ -52,7 +52,7 @@ pub struct PingServiceConfig<'a> {
 
 impl PingService {
     // Create and run ping service.
-    pub fn create<'a>(config: PingServiceConfig<'a>) -> PingResult<Self> {
+    pub fn create(config: PingServiceConfig<'_>) -> PingResult<Self> {
         let mut deque = VecDeque::<Ipv4Addr>::new();
         for ip in config.ips {
             deque.push_back(*ip);
