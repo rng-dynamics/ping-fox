@@ -13,21 +13,26 @@ fn test_ping_multiple_net() {
         .with_max_level(Level::TRACE)
         .finish();
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+
     // example.com 93.184.216.34
     let ip_example_com = Ipv4Addr::new(93, 184, 216, 34);
     // iana.com 192.0.43.8
     let ip_iana_com = Ipv4Addr::new(192, 0, 43, 8);
 
-    let mut ping_service = PingService::new(64);
-    ping_service
-        .run(&[ip_example_com, ip_iana_com], 1, Duration::from_secs(1))
-        .unwrap();
+    let ping_config = PingServiceConfig {
+        ips: &[ip_example_com, ip_iana_com],
+        count: 1,
+        interval: Duration::from_secs(1),
+        channel_size: 4,
+    };
+
+    let ping_service = PingService::create(ping_config).unwrap();
 
     // we expect two values
     let frst = ping_service.next_ping_output().unwrap();
     let scnd = ping_service.next_ping_output().unwrap();
 
-    let _ = ping_service.halt();
+    drop(ping_service);
 
     let ip_1_match_1 = frst.ip_addr == ip_example_com;
     let ip_1_match_2 = frst.ip_addr == ip_iana_com;
