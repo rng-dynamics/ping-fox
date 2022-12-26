@@ -19,20 +19,20 @@ fn test_ping_multiple_net() {
     // iana.com 192.0.43.8
     let ip_iana_com = Ipv4Addr::new(192, 0, 43, 8);
 
-    let ping_config = PingServiceConfig {
+    let ping_config = PingRunnerConfig {
         ips: &[ip_example_com, ip_iana_com],
         count: 1,
         interval: Duration::from_secs(1),
         channel_size: 4,
     };
 
-    let ping_service = PingService::create(ping_config).unwrap();
+    let ping_runner = PingRunner::create(ping_config).unwrap();
 
     // we expect two values
-    let frst = ping_service.next_ping_output().unwrap();
-    let scnd = ping_service.next_ping_output().unwrap();
+    let frst = ping_runner.next_ping_output().unwrap();
+    let scnd = ping_runner.next_ping_output().unwrap();
 
-    drop(ping_service);
+    drop(ping_runner);
 
     let ip_1_match_1 = frst.ip_addr == ip_example_com;
     let ip_1_match_2 = frst.ip_addr == ip_iana_com;

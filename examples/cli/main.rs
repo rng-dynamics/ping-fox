@@ -2,8 +2,8 @@ use std::net::Ipv4Addr;
 use std::time::Duration;
 
 use ping_fox::PingOutput;
-use ping_fox::PingService;
-use ping_fox::PingServiceConfig;
+use ping_fox::PingRunner;
+use ping_fox::PingRunnerConfig;
 
 type GenericError = Box<dyn std::error::Error + Send + Sync + 'static>;
 #[derive(Debug)]
@@ -32,17 +32,17 @@ fn main() -> Result<(), GenericError> {
     }
     let count = addresses.len();
 
-    let ping_config = PingServiceConfig {
+    let ping_config = PingRunnerConfig {
         ips: &addresses,
         count: 1,
         interval: Duration::from_secs(1),
         channel_size: 8,
     };
 
-    let ping_service = PingService::create(ping_config)?;
+    let ping_runner = PingRunner::create(ping_config)?;
 
     for _ in 0..count {
-        match ping_service.next_ping_output() {
+        match ping_runner.next_ping_output() {
             Ok(ok) => {
                 let PingOutput {
                     package_size: payload_size,

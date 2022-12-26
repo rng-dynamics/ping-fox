@@ -17,7 +17,7 @@ use crate::PingSender;
 
 pub type PingResult<T> = std::result::Result<T, GenericError>;
 
-pub struct PingService {
+pub struct PingRunner {
     states: Vec<State>,
 
     sender_thread: Option<JoinHandle<()>>,
@@ -35,7 +35,7 @@ pub enum State {
     Halted,
 }
 
-impl Drop for PingService {
+impl Drop for PingRunner {
     fn drop(&mut self) {
         if let Err(e) = self.halt() {
             tracing::error!("{:#?}", e);
@@ -43,16 +43,16 @@ impl Drop for PingService {
     }
 }
 
-pub struct PingServiceConfig<'a> {
+pub struct PingRunnerConfig<'a> {
     pub ips: &'a [Ipv4Addr],
     pub count: u16,
     pub interval: Duration,
     pub channel_size: usize,
 }
 
-impl PingService {
-    // Create and run ping service.
-    pub fn create(config: PingServiceConfig<'_>) -> PingResult<Self> {
+impl PingRunner {
+    // Create and start ping runner.
+    pub fn create(config: PingRunnerConfig<'_>) -> PingResult<Self> {
         let mut deque = VecDeque::<Ipv4Addr>::new();
         for ip in config.ips {
             deque.push_back(*ip);
@@ -222,28 +222,28 @@ mod tests {
 
     #[test]
     fn ping_localhost_succeeds() {
-        let ping_config = PingServiceConfig {
+        let ping_config = PingRunnerConfig {
             ips: &[Ipv4Addr::new(127, 0, 0, 1)],
             count: 1,
             interval: Duration::from_secs(1),
             channel_size: 4,
         };
 
-        let ping_service = PingService::create(ping_config).unwrap();
-        let ping_output = ping_service.next_ping_output();
+        let ping_runner = PingRunner::create(ping_config).unwrap();
+        let ping_output = ping_runner.next_ping_output();
         assert!(ping_output.is_ok());
     }
 
     #[test]
     fn halt_succeeds() {
-        let ping_config = PingServiceConfig {
+        let ping_config = PingRunnerConfig {
             ips: &[Ipv4Addr::new(127, 0, 0, 1)],
             count: 1,
             interval: Duration::from_secs(1),
             channel_size: 4,
         };
 
-        let mut ping_service = PingService::create(ping_config).unwrap();
-        assert!(ping_service.halt().is_ok());
+        let mut ping_runner = PingRunner::create(ping_config).unwrap();
+        assert!(ping_runner.halt().is_ok());
     }
 }
