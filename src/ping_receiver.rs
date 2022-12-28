@@ -93,7 +93,7 @@ mod tests {
         let (tx_2, rx_2) = ping_receive_event_channel(CHANNEL_SIZE);
         let (ping_send_event_tx, _ping_send_event_rx) = ping_send_event_channel(CHANNEL_SIZE);
 
-        let ping_sender = PingSender::new(icmpv4.clone(), socket_mock.clone(), ping_send_event_tx);
+        let ping_sender = PingSender::new(icmpv4, socket_mock.clone(), ping_send_event_tx);
 
         let ip_127_0_0_1 = Ipv4Addr::new(127, 0, 0, 1);
         ping_sender.send_one(ip_127_0_0_1, 0).unwrap();
@@ -129,7 +129,7 @@ mod tests {
         let icmpv4 = Arc::new(IcmpV4::create());
         let (tx_2, rx_2) = ping_receive_event_channel(CHANNEL_SIZE);
         let (ping_sent_event_tx, _ping_sent_event_rx) = ping_send_event_channel(CHANNEL_SIZE);
-        let ping_sender = PingSender::new(icmpv4.clone(), socket_mock.clone(), ping_sent_event_tx);
+        let ping_sender = PingSender::new(icmpv4, socket_mock.clone(), ping_sent_event_tx);
         let ip_127_0_0_1 = Ipv4Addr::new(127, 0, 0, 1);
         ping_sender.send_one(ip_127_0_0_1, 0).unwrap();
 
