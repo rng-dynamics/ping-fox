@@ -1,7 +1,7 @@
 use std::net::Ipv4Addr;
 use std::sync::Arc;
 
-use crate::event::*;
+use crate::event::{PingSendEvent, PingSendEventSender};
 use crate::IcmpV4;
 use crate::PingResult;
 
@@ -31,7 +31,7 @@ where
         // (1) Send ping.
         let (payload_size, ip_addr, sequence_number, send_time) =
             self.icmpv4
-                .send_one_ping(&*self.socket, &ip, sequence_number)?;
+                .send_one_ping(&*self.socket, ip, sequence_number)?;
 
         // (2) Dispatch data to PingDataBuffer
         self.ping_sent_event_tx.send(PingSendEvent {
@@ -47,6 +47,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::event::ping_send_event_channel;
     use crate::socket::tests::OnReceive;
     use crate::socket::tests::OnSend;
     use crate::socket::tests::SocketMock;

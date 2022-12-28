@@ -39,7 +39,7 @@ fn main() -> Result<(), GenericError> {
         channel_size: 8,
     };
 
-    let ping_runner = PingRunner::create(ping_config)?;
+    let ping_runner = PingRunner::create(&ping_config)?;
 
     for _ in 0..count {
         match ping_runner.next_ping_output() {

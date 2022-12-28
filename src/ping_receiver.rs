@@ -1,11 +1,10 @@
 use std::sync::Arc;
 
-use crate::event::*;
+use crate::event::{PingReceiveEvent, PingReceiveEventData, PingReceiveEventSender};
 use crate::IcmpV4;
 use crate::PingResult;
 
 pub(crate) struct PingReceiver<S> {
-    icmpv4: Arc<IcmpV4>,
     socket: Arc<S>,
     ping_received_event_tx: PingReceiveEventSender,
 }
@@ -14,13 +13,8 @@ impl<S> PingReceiver<S>
 where
     S: crate::Socket + 'static,
 {
-    pub(crate) fn new(
-        icmpv4: Arc<IcmpV4>,
-        socket: Arc<S>,
-        ping_received_event_tx: PingReceiveEventSender,
-    ) -> Self {
+    pub(crate) fn new(socket: Arc<S>, ping_received_event_tx: PingReceiveEventSender) -> Self {
         PingReceiver {
-            icmpv4,
             socket,
             ping_received_event_tx,
         }
@@ -28,7 +22,7 @@ where
 
     pub(crate) fn receive(&self) -> PingResult<()> {
         // (2) Receive on socket.
-        let recv_echo_result = self.icmpv4.try_receive(&*self.socket);
+        let recv_echo_result = IcmpV4::try_receive(&*self.socket);
         match recv_echo_result {
             Ok(None) => {
                 // Timeout: nothing received.
@@ -60,6 +54,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::event::{ping_receive_event_channel, ping_send_event_channel};
     use crate::socket::tests::OnReceive;
     use crate::socket::tests::OnSend;
     use crate::socket::tests::SocketMock;
@@ -74,10 +69,9 @@ mod tests {
             OnSend::ReturnDefault,
             OnReceive::ReturnDefault(2),
         ));
-        let icmpv4 = Arc::new(IcmpV4::create());
         let (tx_2, rx_2) = ping_receive_event_channel(CHANNEL_SIZE);
 
-        let ping_receiver = PingReceiver::new(icmpv4, socket_mock, tx_2);
+        let ping_receiver = PingReceiver::new(socket_mock, tx_2);
         ping_receiver.receive().unwrap();
         ping_receiver.receive().unwrap();
 
@@ -106,7 +100,7 @@ mod tests {
         ping_sender.send_one(ip_127_0_0_1, 1).unwrap();
         ping_sender.send_one(ip_127_0_0_1, 2).unwrap();
 
-        let ping_receiver = PingReceiver::new(icmpv4, socket_mock, tx_2);
+        let ping_receiver = PingReceiver::new(socket_mock, tx_2);
         ping_receiver.receive().unwrap();
         ping_receiver.receive().unwrap();
         ping_receiver.receive().unwrap();
@@ -139,7 +133,7 @@ mod tests {
         let ip_127_0_0_1 = Ipv4Addr::new(127, 0, 0, 1);
         ping_sender.send_one(ip_127_0_0_1, 0).unwrap();
 
-        let ping_receiver = PingReceiver::new(icmpv4, socket_mock, tx_2);
+        let ping_receiver = PingReceiver::new(socket_mock, tx_2);
         let receive_result = ping_receiver.receive();
 
         assert!(receive_result.is_ok());

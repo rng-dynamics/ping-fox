@@ -26,7 +26,7 @@ fn test_ping_multiple_net() {
         channel_size: 4,
     };
 
-    let ping_runner = PingRunner::create(ping_config).unwrap();
+    let ping_runner = PingRunner::create(&ping_config).unwrap();
 
     // we expect two values
     let frst = ping_runner.next_ping_output().unwrap();
