@@ -1,7 +1,6 @@
 ## TODO
 
 - Push coverage report to publicly accessible site.
-- Use scripts for CI whenever effective.
 - Socket type (UDP, raw) should be configured by parameter.
 - What should happen if we receive an unexpected message (e.g., a duplicate)?
 - Handle timeout-event in ping-data-buffer.
@@ -11,6 +10,8 @@
 
 ## done
 
+- Add clippy pedantic lints.
+- Use scripts for CI whenever effective.
 - Code coverage in CI. Upload coverage report to artefacts.
 - Cargo clippy in CI.
 - Check formatting in CI.
