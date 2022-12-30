@@ -5,7 +5,7 @@ use more_asserts as ma;
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
 
-use ping_fox::*;
+use ping_fox::{PingRunner, PingRunnerConfig};
 
 #[test]
 fn test_ping_multiple_net() {
