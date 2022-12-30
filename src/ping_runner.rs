@@ -5,9 +5,12 @@ use std::sync::Arc;
 use std::thread::JoinHandle;
 use std::time::Duration;
 
-use crate::event::*;
-use crate::ping_output::*;
-use crate::socket::*;
+use crate::event::{
+    ping_receive_event_channel, ping_send_event_channel, ping_send_sync_event_channel,
+    PingSentSyncEvent,
+};
+use crate::ping_output::{ping_output_channel, PingOutput, PingOutputReceiver};
+use crate::socket::create_socket2_dgram_socket;
 use crate::GenericError;
 use crate::IcmpV4;
 use crate::PingDataBuffer;
@@ -17,7 +20,7 @@ use crate::PingSender;
 
 pub type PingResult<T> = std::result::Result<T, GenericError>;
 
-pub struct PingService {
+pub struct PingRunner {
     states: Vec<State>,
 
     sender_thread: Option<JoinHandle<()>>,
@@ -30,12 +33,12 @@ pub struct PingService {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum State {
+enum State {
     Running,
     Halted,
 }
 
-impl Drop for PingService {
+impl Drop for PingRunner {
     fn drop(&mut self) {
         if let Err(e) = self.halt() {
             tracing::error!("{:#?}", e);
@@ -43,16 +46,17 @@ impl Drop for PingService {
     }
 }
 
-pub struct PingServiceConfig<'a> {
+#[allow(clippy::module_name_repetitions)]
+pub struct PingRunnerConfig<'a> {
     pub ips: &'a [Ipv4Addr],
     pub count: u16,
     pub interval: Duration,
     pub channel_size: usize,
 }
 
-impl PingService {
-    // Create and run ping service.
-    pub fn create(config: PingServiceConfig<'_>) -> PingResult<Self> {
+impl PingRunner {
+    // Create and start ping runner.
+    pub fn create(config: &PingRunnerConfig<'_>) -> PingResult<Self> {
         let mut deque = VecDeque::<Ipv4Addr>::new();
         for ip in config.ips {
             deque.push_back(*ip);
@@ -67,8 +71,8 @@ impl PingService {
         let (send_event_tx, send_event_rx) = ping_send_event_channel(config.channel_size);
         let (ping_output_tx, ping_output_rx) = ping_output_channel(config.channel_size);
 
-        let ping_sender = PingSender::new(icmpv4.clone(), socket.clone(), send_event_tx);
-        let ping_receiver = PingReceiver::new(icmpv4, socket, receive_event_tx);
+        let ping_sender = PingSender::new(icmpv4, socket.clone(), send_event_tx);
+        let ping_receiver = PingReceiver::new(socket, receive_event_tx);
         let ping_data_buffer = PingDataBuffer::new(send_event_rx, receive_event_rx, ping_output_tx);
 
         let (sender_halt_tx, sender_halt_rx) = mpsc::channel::<()>();
@@ -222,28 +226,28 @@ mod tests {
 
     #[test]
     fn ping_localhost_succeeds() {
-        let ping_config = PingServiceConfig {
+        let ping_config = PingRunnerConfig {
             ips: &[Ipv4Addr::new(127, 0, 0, 1)],
             count: 1,
             interval: Duration::from_secs(1),
             channel_size: 4,
         };
 
-        let ping_service = PingService::create(ping_config).unwrap();
-        let ping_output = ping_service.next_ping_output();
+        let ping_runner = PingRunner::create(&ping_config).unwrap();
+        let ping_output = ping_runner.next_ping_output();
         assert!(ping_output.is_ok());
     }
 
     #[test]
     fn halt_succeeds() {
-        let ping_config = PingServiceConfig {
+        let ping_config = PingRunnerConfig {
             ips: &[Ipv4Addr::new(127, 0, 0, 1)],
             count: 1,
             interval: Duration::from_secs(1),
             channel_size: 4,
         };
 
-        let mut ping_service = PingService::create(ping_config).unwrap();
-        assert!(ping_service.halt().is_ok());
+        let mut ping_runner = PingRunner::create(&ping_config).unwrap();
+        assert!(ping_runner.halt().is_ok());
     }
 }

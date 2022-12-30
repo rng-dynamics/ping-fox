@@ -32,13 +32,13 @@ impl IcmpV4 {
     pub(crate) fn send_one_ping<S>(
         &self,
         socket: &S,
-        ipv4: &Ipv4Addr,
+        ipv4: Ipv4Addr,
         sequence_number: u16,
     ) -> Result<(usize, IpAddr, u16, Instant), PingError>
     where
         S: crate::Socket,
     {
-        let ip_addr = IpAddr::V4(*ipv4);
+        let ip_addr = IpAddr::V4(ipv4);
         let addr = std::net::SocketAddr::new(ip_addr, 0);
 
         let package = self.new_icmpv4_package(sequence_number).ok_or(PingError {
@@ -53,7 +53,6 @@ impl IcmpV4 {
     }
 
     pub(crate) fn try_receive<S>(
-        &self,
         socket: &S,
     ) -> std::result::Result<Option<(usize, IpAddr, u16, Instant)>, io::Error>
     where
@@ -116,7 +115,7 @@ mod tests {
 
         let addr = Ipv4Addr::new(127, 0, 0, 1);
         let sequence_number = 1;
-        let result = icmpv4.send_one_ping(&socket_mock, &addr, sequence_number);
+        let result = icmpv4.send_one_ping(&socket_mock, addr, sequence_number);
 
         assert!(result.is_ok());
         socket_mock
@@ -127,9 +126,8 @@ mod tests {
     #[test]
     fn test_try_receive() {
         let socket_mock = SocketMock::new(OnSend::ReturnDefault, OnReceive::ReturnDefault(1));
-        let icmpv4 = IcmpV4::create();
 
-        let result = icmpv4.try_receive(&socket_mock);
+        let result = IcmpV4::try_receive(&socket_mock);
 
         assert!(result.is_ok());
         assert!(result.as_ref().unwrap().is_some());
