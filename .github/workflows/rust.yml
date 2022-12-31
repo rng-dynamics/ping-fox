@@ -88,7 +88,7 @@ jobs:
         PULL_NUMBER: ${{ github.event.pull_request.number }}
       run: |
         rustup component add llvm-tools-preview
-        apt install -y lcov
+        sudo apt-get install -y lcov
         cargo install grcov
         cargo clean # coverage does not seem to update without clean
         python3 ci_scripts/measure_coverage.py
