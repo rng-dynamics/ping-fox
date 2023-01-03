@@ -87,7 +87,7 @@ jobs:
         cargo install grcov
         cargo clean # coverage does not seem to update without clean
         python3 ci_scripts/measure_coverage.py
-    - name: Push measured coverage to pull pull request
+    - name: Report coverage value to pull request
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
