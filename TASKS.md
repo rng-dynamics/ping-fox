@@ -1,6 +1,7 @@
 ## TODO
 
-- Push coverage report to publicly accessible site.
+- More badges wirh shields.io?
+- Use GitHub code scanning?
 - Socket type (UDP, raw) should be configured by parameter.
 - What should happen if we receive an unexpected message (e.g., a duplicate)?
 - Handle timeout-event in ping-data-buffer.
@@ -10,6 +11,7 @@
 
 ## done
 
+- Push coverage report to coveralls.
 - Add clippy pedantic lints.
 - Use scripts for CI whenever effective.
 - Code coverage in CI. Upload coverage report to artefacts.
