@@ -62,7 +62,7 @@ jobs:
       run: cargo test --lib --verbose
 
   coverage:
-    name: Measure coverage
+    name: Measure code coverage
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -81,20 +81,30 @@ jobs:
         key: ${{ runner.os }}-cargo-measure-coverage-${{ hashFiles('**/Cargo.toml') }}
     - uses: dtolnay/rust-toolchain@nightly
     - name: Create code coverage report
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
-        RUN_ID: ${{ github.run_id }}
-        PULL_NUMBER: ${{ github.event.pull_request.number }}
       run: |
         rustup component add llvm-tools-preview
+        sudo apt-get install -y lcov
         cargo install grcov
         cargo clean # coverage does not seem to update without clean
         python3 ci_scripts/measure_coverage.py
-        total=$(python3 ci_scripts/extract_coverage_value.py)
-        curl -s "https://rng-dynamics:${GITHUB_TOKEN}@api.github.com/repos/rng-dynamics/ping-fox/statuses/${COMMIT_SHA}" -d "{\"state\": \"success\",\"target_url\": \"https://github.com/rng-dynamics/ping-fox/pull/${PULL_NUMBER}/checks?check_run_id=${RUN_ID}\",\"description\": \"${total}\",\"context\": \"Measured coverage\"}"
+    # - name: Report coverage value to pull request
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #     COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
+    #     RUN_ID: ${{ github.run_id }}
+    #     PULL_NUMBER: ${{ github.event.pull_request.number }}
+    #   run: |
+    #     total=$(python3 ci_scripts/extract_coverage_value.py)
+    #     curl -s "https://rng-dynamics:${GITHUB_TOKEN}@api.github.com/repos/rng-dynamics/ping-fox/statuses/${COMMIT_SHA}" -d "{\"state\": \"success\",\"target_url\": \"https://github.com/rng-dynamics/ping-fox/pull/${PULL_NUMBER}/checks?check_run_id=${RUN_ID}\",\"description\": \"${total}\",\"context\": \"Measured coverage\"}"
     - name: Archive code coverage results
       uses: actions/upload-artifact@v3
       with:
         name: code-coverage-report
-        path: target/coverage/html/**
+        path: |
+          target/debug/lcov.info
+          target/debug/coverage/**
+    - name: Report coverage to Coveralls
+      uses: coverallsapp/github-action@master
+      with:
+        path-to-lcov: target/debug/lcov.info
+        github-token: ${{ secrets.GITHUB_TOKEN }}
