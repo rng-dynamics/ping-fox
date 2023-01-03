@@ -62,7 +62,7 @@ jobs:
       run: cargo test --lib --verbose
 
   coverage:
-    name: Measure coverage
+    name: Measure code coverage
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -100,4 +100,11 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: code-coverage-report
-        path: target/coverage/html/**
+        path: |
+          target/debug/lcov.info
+          target/debug/coverage/**
+    - name: Coveralls
+      uses: coverallsapp/github-action@master
+      with:
+        path-to-lcov: target/debug/lcov.info
+        github-token: ${{ secrets.GITHUB_TOKEN }}
