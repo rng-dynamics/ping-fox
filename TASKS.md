@@ -1,6 +1,5 @@
 ## TODO
 
-- More badges wirh shields.io?
 - Use GitHub code scanning?
 - Socket type (UDP, raw) should be configured by parameter.
 - What should happen if we receive an unexpected message (e.g., a duplicate)?
@@ -8,9 +7,11 @@
 - Instant::now(): apply dependency inversion and mock it in tests.
 - Cleanup PingError.
 - TTL (needs IP packet to be sent)
+- More badges wirh shields.io?
 
 ## done
 
+- Code coverage badge in readme.
 - Push coverage report to coveralls.
 - Add clippy pedantic lints.
 - Use scripts for CI whenever effective.
