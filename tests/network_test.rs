@@ -5,7 +5,7 @@ use more_asserts as ma;
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
 
-use ping_fox::{PingRunner, PingRunnerConfig};
+use ping_fox::{PingRunner, PingRunnerConfig, SocketType};
 
 #[test]
 fn test_ping_multiple_net() {
@@ -24,6 +24,7 @@ fn test_ping_multiple_net() {
         count: 1,
         interval: Duration::from_secs(1),
         channel_size: 4,
+        socket_type: SocketType::DGRAM,
     };
 
     let ping_runner = PingRunner::create(&ping_config).unwrap();
