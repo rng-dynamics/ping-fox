@@ -59,7 +59,10 @@ jobs:
     - name: Build
       run: cargo build --verbose
     - name: Run tests
-      run: cargo test --lib --verbose
+      run: |
+        cargo test --lib --verbose
+        sudo cargo test ping_localhost_with_raw_socket_succeeds
+
 
   coverage:
     name: Measure code coverage
