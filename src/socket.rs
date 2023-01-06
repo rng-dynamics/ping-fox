@@ -1,7 +1,7 @@
 use std::io;
 use std::time::Duration;
 
-use pnet_packet::{Packet, ipv4::Ipv4Packet};
+use pnet_packet::{ipv4::Ipv4Packet, Packet};
 
 use socket2::{Domain, Protocol, Type};
 
@@ -31,7 +31,7 @@ impl Socket for DgramSocket {
         &self,
         buf: &mut [std::mem::MaybeUninit<u8>],
     ) -> io::Result<(usize, socket2::SockAddr)> {
-            socket2::Socket::recv_from(&self.socket, buf)
+        socket2::Socket::recv_from(&self.socket, buf)
     }
 }
 
@@ -67,7 +67,7 @@ pub(crate) fn create_socket2_dgram_socket(timeout: Duration) -> Result<impl Sock
     socket
         .set_read_timeout(Some(timeout))
         .expect("could not set socket timeout");
-    Ok(DgramSocket{ socket })
+    Ok(DgramSocket { socket })
 }
 
 pub(crate) fn create_socket2_raw_socket(timeout: Duration) -> Result<impl Socket, io::Error> {
@@ -75,7 +75,7 @@ pub(crate) fn create_socket2_raw_socket(timeout: Duration) -> Result<impl Socket
     socket
         .set_read_timeout(Some(timeout))
         .expect("could not set socket timeout");
-    Ok(RawSocket{ socket })
+    Ok(RawSocket { socket })
 }
 
 #[cfg(test)]
