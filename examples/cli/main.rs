@@ -1,9 +1,7 @@
 use std::net::Ipv4Addr;
 use std::time::Duration;
 
-use ping_fox::PingOutput;
-use ping_fox::PingRunner;
-use ping_fox::PingRunnerConfig;
+use ping_fox::{PingOutput, PingRunner, PingRunnerConfig, SocketType};
 
 type GenericError = Box<dyn std::error::Error + Send + Sync + 'static>;
 #[derive(Debug)]
@@ -37,6 +35,7 @@ fn main() -> Result<(), GenericError> {
         count: 1,
         interval: Duration::from_secs(1),
         channel_size: 8,
+        socket_type: SocketType::DGRAM,
     };
 
     let ping_runner = PingRunner::create(&ping_config)?;

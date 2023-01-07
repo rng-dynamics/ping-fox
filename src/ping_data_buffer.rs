@@ -61,6 +61,7 @@ impl PingDataBuffer {
                     } = receive_data;
                     match self.send_events.get(&(sequence_number, ip_addr)) {
                         None => {
+                            tracing::error!("could not find matching data in send-events buffer");
                             // TODO
                         }
                         Some(&(_payload_size, send_time)) => {
@@ -78,6 +79,7 @@ impl PingDataBuffer {
                     }
                 }
                 PingReceiveEvent::Timeout => {
+                    tracing::warn!("timeout");
                     // TODO
                 }
             }

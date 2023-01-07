@@ -26,16 +26,13 @@ where
         match recv_echo_result {
             Ok(None) => {
                 // Timeout: nothing received.
-                tracing::trace!("try_receive Ok(None)");
                 self.ping_received_event_tx
                     .send(PingReceiveEvent::Timeout)?;
             }
             Err(e) => {
-                tracing::trace!("try_receive Err(e)");
                 tracing::error!("error receiving icmp: {}", e);
             }
             Ok(Some((package_size, ip_addr, sequence_number, receive_time))) => {
-                tracing::trace!("try_receive Ok(Some((ip, sn)))");
                 tracing::trace!("icmpv4 received");
                 // (3) Send ping-received-event.
                 self.ping_received_event_tx

@@ -10,7 +10,7 @@ use crate::event::{
     PingSentSyncEvent,
 };
 use crate::ping_output::{ping_output_channel, PingOutput, PingOutputReceiver};
-use crate::socket::create_socket2_dgram_socket;
+use crate::socket;
 use crate::GenericError;
 use crate::IcmpV4;
 use crate::PingDataBuffer;
@@ -46,24 +46,44 @@ impl Drop for PingRunner {
     }
 }
 
+pub enum SocketType {
+    DGRAM,
+    RAW,
+}
+
 #[allow(clippy::module_name_repetitions)]
 pub struct PingRunnerConfig<'a> {
     pub ips: &'a [Ipv4Addr],
     pub count: u16,
     pub interval: Duration,
     pub channel_size: usize,
+    pub socket_type: SocketType,
 }
 
 impl PingRunner {
     // Create and start ping runner.
     pub fn create(config: &PingRunnerConfig<'_>) -> PingResult<Self> {
+        let socket_timeout = Duration::from_millis(2000); // TODO
+        match config.socket_type {
+            SocketType::DGRAM => {
+                let socket = Arc::new(socket::create_socket2_dgram_socket(socket_timeout)?);
+                Ok(Self::create_with_socket(config, socket))
+            }
+            SocketType::RAW => {
+                let socket = Arc::new(socket::create_socket2_raw_socket(socket_timeout)?);
+                Ok(Self::create_with_socket(config, socket))
+            }
+        }
+    }
+
+    fn create_with_socket<S>(config: &PingRunnerConfig<'_>, socket: Arc<S>) -> Self
+    where
+        S: crate::Socket + 'static,
+    {
         let mut deque = VecDeque::<Ipv4Addr>::new();
         for ip in config.ips {
             deque.push_back(*ip);
         }
-
-        let icmpv4 = std::sync::Arc::new(IcmpV4::create());
-        let socket = Arc::new(create_socket2_dgram_socket(Duration::from_millis(2000))?);
 
         let (send_sync_event_tx, send_sync_event_rx) =
             ping_send_sync_event_channel(config.channel_size);
@@ -71,11 +91,16 @@ impl PingRunner {
         let (send_event_tx, send_event_rx) = ping_send_event_channel(config.channel_size);
         let (ping_output_tx, ping_output_rx) = ping_output_channel(config.channel_size);
 
-        let ping_sender = PingSender::new(icmpv4, socket.clone(), send_event_tx);
-        let ping_receiver = PingReceiver::new(socket, receive_event_tx);
+        let (sender_halt_tx, sender_halt_rx) = mpsc::channel::<()>();
+        let (receiver_halt_tx, receiver_halt_rx) = mpsc::channel::<()>();
+
         let ping_data_buffer = PingDataBuffer::new(send_event_rx, receive_event_rx, ping_output_tx);
 
-        let (sender_halt_tx, sender_halt_rx) = mpsc::channel::<()>();
+        let icmpv4 = std::sync::Arc::new(IcmpV4::create());
+
+        let ping_sender = PingSender::new(icmpv4, socket.clone(), send_event_tx);
+        let ping_receiver = PingReceiver::new(socket, receive_event_tx);
+
         let sender_thread = Self::start_sender_thread(
             ping_sender,
             sender_halt_rx,
@@ -85,7 +110,6 @@ impl PingRunner {
             config.interval,
         );
 
-        let (receiver_halt_tx, receiver_halt_rx) = mpsc::channel::<()>();
         let receiver_thread = Self::start_receiver_thread(
             ping_data_buffer,
             ping_receiver,
@@ -93,14 +117,14 @@ impl PingRunner {
             send_sync_event_rx,
         );
 
-        Ok(Self {
+        Self {
             states: vec![State::Running],
             sender_thread: Some(sender_thread),
             sender_halt_tx,
             receiver_thread: Some(receiver_thread),
             receiver_halt_tx,
             ping_output_rx,
-        })
+        }
     }
 
     pub fn next_ping_output(&self) -> PingResult<PingOutput> {
@@ -119,8 +143,14 @@ impl PingRunner {
             return Ok(());
         }
         // mpsc::Sender::send() returns error only if mpsc::Receiver is closed.
-        let _maybe_err_1 = self.sender_halt_tx.send(());
-        let _maybe_err_2 = self.receiver_halt_tx.send(());
+        let maybe_err_1 = self.sender_halt_tx.send(());
+        if let Err(e) = maybe_err_1 {
+            tracing::warn!("could not send shutdown message to sender thread: {}", e);
+        }
+        let maybe_err_2 = self.receiver_halt_tx.send(());
+        if let Err(e) = maybe_err_2 {
+            tracing::warn!("could not send shutdown message to receiver thread: {}", e);
+        }
 
         let join_result_1 = match self.sender_thread.take() {
             Some(handle) => handle.join(),
@@ -145,18 +175,21 @@ impl PingRunner {
         }
     }
 
-    fn start_receiver_thread(
+    fn start_receiver_thread<S>(
         mut ping_data_buffer: PingDataBuffer,
-        ping_receiver: PingReceiver<socket2::Socket>,
+        ping_receiver: PingReceiver<S>,
         halt_rx: mpsc::Receiver<()>,
         ping_send_sync_event_rx: mpsc::Receiver<PingSentSyncEvent>,
-    ) -> JoinHandle<()> {
+    ) -> JoinHandle<()>
+    where
+        S: crate::Socket + 'static,
+    {
         std::thread::spawn(move || {
             'outer: loop {
                 // (1) Wait for sync-event from PingSender.
-                let ping_sent_sync_event_recv = ping_send_sync_event_rx.recv();
+                let ping_send_sync_event_recv = ping_send_sync_event_rx.recv();
 
-                if let Err(e) = ping_sent_sync_event_recv {
+                if let Err(e) = ping_send_sync_event_recv {
                     tracing::info!("mpsc::Receiver::recv() failed: {}", e);
                     break 'outer;
                 }
@@ -178,20 +211,20 @@ impl PingRunner {
         })
     }
 
-    fn start_sender_thread(
-        ping_sender: PingSender<socket2::Socket>,
+    fn start_sender_thread<S>(
+        ping_sender: PingSender<S>,
         halt_rx: mpsc::Receiver<()>,
         count: u16,
         ips: VecDeque<Ipv4Addr>,
         ping_send_sync_event_tx: mpsc::SyncSender<PingSentSyncEvent>,
         interval: Duration,
-    ) -> JoinHandle<()> {
+    ) -> JoinHandle<()>
+    where
+        S: crate::Socket + 'static,
+    {
         std::thread::spawn(move || {
-            tracing::trace!("PingSender thread start with count {}", count);
             'outer: for sequence_number in 0..count {
-                tracing::trace!("PingSender outer loop start");
                 for ip in &ips {
-                    tracing::trace!("PingSender inner loop start");
                     if ping_sender.send_one(*ip, sequence_number).is_err() {
                         tracing::error!("PingSender::send_one() failed");
                         break 'outer;
@@ -225,12 +258,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn ping_localhost_succeeds() {
+    fn ping_localhost_with_datagram_socket_succeeds() {
         let ping_config = PingRunnerConfig {
             ips: &[Ipv4Addr::new(127, 0, 0, 1)],
             count: 1,
             interval: Duration::from_secs(1),
             channel_size: 4,
+            socket_type: SocketType::DGRAM,
         };
 
         let ping_runner = PingRunner::create(&ping_config).unwrap();
@@ -245,6 +279,7 @@ mod tests {
             count: 1,
             interval: Duration::from_secs(1),
             channel_size: 4,
+            socket_type: SocketType::DGRAM,
         };
 
         let mut ping_runner = PingRunner::create(&ping_config).unwrap();

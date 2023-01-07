@@ -1,16 +1,17 @@
 ## TODO
 
-- Use GitHub code scanning?
-- Socket type (UDP, raw) should be configured by parameter.
-- What should happen if we receive an unexpected message (e.g., a duplicate)?
 - Handle timeout-event in ping-data-buffer.
 - Instant::now(): apply dependency inversion and mock it in tests.
 - Cleanup PingError.
 - TTL (needs IP packet to be sent)
+- After adding TTL, reevaluate our tests/test coverage/design.
+- What should happen if we receive an unexpected message (e.g., a duplicate)?
+- Should we test RawSocket::recv_from? Unit test? Can we test Raw socket also in an integration test elegantly?
 - More badges wirh shields.io?
 
 ## done
 
+- Socket type (UDP, raw) should be configured by parameter.
 - Code coverage badge in readme.
 - Push coverage report to coveralls.
 - Add clippy pedantic lints.
