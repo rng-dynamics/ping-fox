@@ -4,6 +4,7 @@
 - Instant::now(): apply dependency inversion and mock it in tests.
 - Cleanup PingError.
 - TTL (needs IP packet to be sent)
+- After adding TTL, reevaluate our tests/test coverage/design.
 - What should happen if we receive an unexpected message (e.g., a duplicate)?
 - Should we test RawSocket::recv_from? Unit test? Can we test Raw socket also in an integration test elegantly?
 - More badges wirh shields.io?
