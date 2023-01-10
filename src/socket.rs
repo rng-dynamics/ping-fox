@@ -5,6 +5,10 @@ use pnet_packet::{ipv4::Ipv4Packet, Packet};
 
 use socket2::{Domain, Protocol, Type};
 
+mod c_dgram_socket_api {
+    include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+}
+
 pub(crate) trait Socket: Send + Sync {
     fn send_to(&self, buf: &[u8], addr: &socket2::SockAddr) -> io::Result<usize>;
 

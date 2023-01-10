@@ -12,3 +12,7 @@ tracing-subscriber = "0.2"
 
 [dev-dependencies]
 more-asserts = "0.3"
+
+[build-dependencies]
+cc = "1.0"
+bindgen = "0.63"
