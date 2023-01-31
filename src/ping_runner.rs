@@ -10,7 +10,6 @@ use crate::event::{
     PingSentSyncEvent,
 };
 use crate::ping_output::{ping_output_channel, PingOutput, PingOutputReceiver};
-use crate::socket;
 use crate::GenericError;
 use crate::IcmpV4;
 use crate::PingDataBuffer;
@@ -66,11 +65,11 @@ impl PingRunner {
         let socket_timeout = Duration::from_millis(2000); // TODO
         match config.socket_type {
             SocketType::DGRAM => {
-                let socket = Arc::new(socket::create_socket2_dgram_socket(socket_timeout)?);
+                let socket = Arc::new(crate::icmpv4_socket::create_dgram_socket(socket_timeout)?);
                 Ok(Self::create_with_socket(config, socket))
             }
             SocketType::RAW => {
-                let socket = Arc::new(socket::create_socket2_raw_socket(socket_timeout)?);
+                let socket = Arc::new(crate::icmpv4_socket::create_raw_socket(socket_timeout)?);
                 Ok(Self::create_with_socket(config, socket))
             }
         }
@@ -78,7 +77,7 @@ impl PingRunner {
 
     fn create_with_socket<S>(config: &PingRunnerConfig<'_>, socket: Arc<S>) -> Self
     where
-        S: crate::Socket + 'static,
+        S: crate::icmpv4_socket::IcmpV4Socket + 'static,
     {
         let mut deque = VecDeque::<Ipv4Addr>::new();
         for ip in config.ips {
@@ -182,7 +181,7 @@ impl PingRunner {
         ping_send_sync_event_rx: mpsc::Receiver<PingSentSyncEvent>,
     ) -> JoinHandle<()>
     where
-        S: crate::Socket + 'static,
+        S: crate::icmpv4_socket::IcmpV4Socket + 'static,
     {
         std::thread::spawn(move || {
             'outer: loop {
@@ -220,7 +219,7 @@ impl PingRunner {
         interval: Duration,
     ) -> JoinHandle<()>
     where
-        S: crate::Socket + 'static,
+        S: crate::icmpv4_socket::IcmpV4Socket + 'static,
     {
         std::thread::spawn(move || {
             'outer: for sequence_number in 0..count {

@@ -2,8 +2,10 @@
 #![warn(clippy::pedantic)]
 #![allow(clippy::missing_errors_doc)] // TODO
 
+mod c_dgram_socket;
 mod event;
 mod icmpv4;
+mod icmpv4_socket;
 mod ping_data_buffer;
 mod ping_error;
 mod ping_output;
