@@ -48,7 +48,7 @@ mod tests {
                 pnet_packet::Packet::packet(&package),
                 // &"127.0.0.1:7".parse::<SocketAddr>().unwrap().into(),
                 // &"8.8.8.8:7".parse::<SocketAddr>().unwrap().into(),
-                &"93.184.216.34:7".parse::<SocketAddr>().unwrap().into(),
+                &"127.0.0.1:0".parse::<SocketAddr>().unwrap().into(),
             )
             .unwrap();
 
@@ -63,8 +63,12 @@ mod tests {
 
         let recv_data = c_dgram_socket.recv_from();
         println!("{:?}", recv_data);
-        let addr_str: String =
-            String::from_utf8(recv_data.addr_str.iter().map(|&c| c as u8).collect()).unwrap();
+        let addr_str: String = unsafe {
+            std::ffi::CStr::from_ptr(recv_data.addr_str.as_ptr().cast())
+                .to_str()
+                .unwrap()
+                .to_string()
+        };
         println!(
             "{:?}, {:?}, {:?}",
             recv_data.bytes_received, addr_str, recv_data.ttl
