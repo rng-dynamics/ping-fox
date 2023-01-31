@@ -73,12 +73,7 @@ impl IcmpV4 {
                     EchoReplyPacket::new(&buf2).expect("could not initialize echo reply package");
                 let sn = echo_reply_package.get_sequence_number();
                 // TODO: use TTL
-                Ok(Some((
-                    n,
-                    addr,
-                    sn,
-                    receive_time,
-                )))
+                Ok(Some((n, addr, sn, receive_time)))
             }
         }
     }

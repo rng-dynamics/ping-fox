@@ -114,7 +114,11 @@ impl IcmpV4Socket for RawSocket {
             buf[idx] = std::mem::MaybeUninit::new(*bval);
         }
         let ip = *socket_addr.as_socket_ipv4().expect("logic error").ip();
-        Ok((ip_payload.len(), std::net::IpAddr::V4(ip), ipv4_packet.get_ttl().into()))
+        Ok((
+            ip_payload.len(),
+            std::net::IpAddr::V4(ip),
+            ipv4_packet.get_ttl().into(),
+        ))
     }
 }
 
@@ -144,5 +148,7 @@ fn str_from_null_terminated_utf8_safe(s: &[u8]) -> &str {
 
 // unsafe: s must contain a null byte
 unsafe fn str_from_null_terminated_utf8(s: &[u8]) -> &str {
-    std::ffi::CStr::from_ptr(s.as_ptr().cast()).to_str().unwrap()
+    std::ffi::CStr::from_ptr(s.as_ptr().cast())
+        .to_str()
+        .unwrap()
 }

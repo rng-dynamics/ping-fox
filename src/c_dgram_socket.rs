@@ -63,8 +63,12 @@ mod tests {
 
         let recv_data = c_dgram_socket.recv_from();
         println!("{:?}", recv_data);
-        let addr_str: String = String::from_utf8(recv_data.addr_str.iter().map(|&c| c as u8).collect()).unwrap();
-        println!("{:?}, {:?}, {:?}", recv_data.bytes_received, addr_str, recv_data.ttl);
+        let addr_str: String =
+            String::from_utf8(recv_data.addr_str.iter().map(|&c| c as u8).collect()).unwrap();
+        println!(
+            "{:?}, {:?}, {:?}",
+            recv_data.bytes_received, addr_str, recv_data.ttl
+        );
         // println!("{:?}", buffer);
     }
 }
