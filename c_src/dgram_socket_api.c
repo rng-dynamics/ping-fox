@@ -8,6 +8,9 @@
 
 #include <stdio.h> // TODO: remove
 
+/**
+ * @brief 
+*/
 RecvData recv_from(int socket, char *buffer, size_t buffer_len) {
   int yes = 1;
   // TODO: check return type
@@ -66,7 +69,7 @@ RecvData recv_from(int socket, char *buffer, size_t buffer_len) {
       ttl = *ttl_ptr;
       is_ttl_set = true;
       printf("(c) reading ttl OK %d\n", ttl);
-      // break;
+      break;
     }
   }
   if (!is_ttl_set) {

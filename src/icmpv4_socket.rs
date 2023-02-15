@@ -23,7 +23,7 @@ pub(crate) trait IcmpV4Socket: Send + Sync {
         addr: &socket2::SockAddr,
     ) -> io::Result<usize>;
 
-    // TODO: return a EchoReplyPacket ?
+    // TODO: return a EchoReplyPacket ? (or change`send_to` to use byte array)
     fn recv_from(
         &self,
         buf: &mut [std::mem::MaybeUninit<u8>],
@@ -64,20 +64,17 @@ impl IcmpV4Socket for CApiDgramIcmpV4Socket {
         let received_data: RecvData =
             unsafe { c_dgram_socket_api::recv_from(raw_fd, buffer_ptr, BUFFER_LEN) };
         let addr_str: String =
-            // unsafe {String::from_utf8_unchecked(received_data.addr_str.iter().map(|&c| c as u8).collect())};
-                // .expect("cannot convert string");
-            str_from_null_terminated_utf8_safe(&received_data.addr_str).into();
+            str_from_null_terminated_utf8_safe(&received_data.addr_str).to_string();
         println!("{:?}", addr_str);
         Ok((
             received_data
                 .bytes_received
                 .try_into()
-                .expect("cannot convert integer"),
-            addr_str.parse::<std::net::IpAddr>().unwrap().into(),
-            received_data
-                .ttl
-                .try_into()
-                .expect("cannot convert integer"),
+                .expect("error reading number of bytes received"),
+            addr_str
+                .parse::<std::net::IpAddr>()
+                .expect("error reading IP address"),
+            received_data.ttl.try_into().expect("error decoding TTL"),
         ))
     }
 }
@@ -139,7 +136,7 @@ pub(crate) fn create_raw_socket(timeout: Duration) -> Result<impl IcmpV4Socket, 
 }
 
 fn str_from_null_terminated_utf8_safe(s: &[u8]) -> &str {
-    if s.iter().any(|&x| x == 0) {
+    if s.iter().any(|&x| x == 0u8) {
         unsafe { str_from_null_terminated_utf8(s) }
     } else {
         std::str::from_utf8(s).unwrap()
