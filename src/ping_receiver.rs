@@ -11,7 +11,7 @@ pub(crate) struct PingReceiver<S> {
 
 impl<S> PingReceiver<S>
 where
-    S: crate::icmpv4_socket::IcmpV4Socket + 'static,
+    S: crate::icmp::v4::socket::IcmpV4Socket + 'static,
 {
     pub(crate) fn new(socket: Arc<S>, ping_received_event_tx: PingReceiveEventSender) -> Self {
         PingReceiver {

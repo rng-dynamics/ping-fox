@@ -36,7 +36,7 @@ impl IcmpV4 {
         sequence_number: u16,
     ) -> Result<(usize, IpAddr, u16, Instant), PingError>
     where
-        S: crate::icmpv4_socket::IcmpV4Socket,
+        S: crate::IcmpV4Socket,
     {
         let ip_addr = IpAddr::V4(ipv4);
         let addr = std::net::SocketAddr::new(ip_addr, 0);
@@ -47,7 +47,7 @@ impl IcmpV4 {
 
         // TODO(as): do not use Instant::now() directly.
         let start_time: Instant = Instant::now();
-        socket.send_to(package, &addr.into())?;
+        socket.send_to(pnet_packet::Packet::packet(&package), &addr.into())?;
 
         Ok((PAYLOAD_SIZE, ip_addr, sequence_number, start_time))
     }
@@ -56,21 +56,16 @@ impl IcmpV4 {
         socket: &S,
     ) -> std::result::Result<Option<(usize, IpAddr, u16, Instant)>, io::Error>
     where
-        S: crate::icmpv4_socket::IcmpV4Socket,
+        S: crate::IcmpV4Socket,
     {
-        let mut buf1 = [std::mem::MaybeUninit::<u8>::uninit(); 256];
+        let mut buf1 = [0u8; 256];
         match socket.recv_from(&mut buf1) {
             Err(e) if e.kind() == io::ErrorKind::WouldBlock => Ok(None),
             Err(e) => Err(e),
             Ok((n, addr, ttl)) => {
                 let receive_time: Instant = Instant::now();
-                let buf2: Vec<u8> = buf1
-                    .iter()
-                    .take(n)
-                    .map(|&b| unsafe { b.assume_init() })
-                    .collect();
                 let echo_reply_package =
-                    EchoReplyPacket::new(&buf2).expect("could not initialize echo reply package");
+                    EchoReplyPacket::new(&buf1).expect("could not initialize echo reply package");
                 let sn = echo_reply_package.get_sequence_number();
                 // TODO: use TTL
                 Ok(Some((n, addr, sn, receive_time)))

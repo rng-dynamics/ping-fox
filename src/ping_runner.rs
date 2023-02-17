@@ -65,11 +65,11 @@ impl PingRunner {
         let socket_timeout = Duration::from_millis(2000); // TODO
         match config.socket_type {
             SocketType::DGRAM => {
-                let socket = Arc::new(crate::icmpv4_socket::create_dgram_socket(socket_timeout)?);
+                let socket = Arc::new(crate::icmp::v4::socket::create_dgram_socket(socket_timeout)?);
                 Ok(Self::create_with_socket(config, socket))
             }
             SocketType::RAW => {
-                let socket = Arc::new(crate::icmpv4_socket::create_raw_socket(socket_timeout)?);
+                let socket = Arc::new(crate::icmp::v4::socket::create_raw_socket(socket_timeout)?);
                 Ok(Self::create_with_socket(config, socket))
             }
         }
@@ -77,7 +77,7 @@ impl PingRunner {
 
     fn create_with_socket<S>(config: &PingRunnerConfig<'_>, socket: Arc<S>) -> Self
     where
-        S: crate::icmpv4_socket::IcmpV4Socket + 'static,
+        S: crate::IcmpV4Socket + 'static,
     {
         let mut deque = VecDeque::<Ipv4Addr>::new();
         for ip in config.ips {
@@ -181,7 +181,7 @@ impl PingRunner {
         ping_send_sync_event_rx: mpsc::Receiver<PingSentSyncEvent>,
     ) -> JoinHandle<()>
     where
-        S: crate::icmpv4_socket::IcmpV4Socket + 'static,
+        S: crate::IcmpV4Socket + 'static,
     {
         std::thread::spawn(move || {
             'outer: loop {
@@ -219,7 +219,7 @@ impl PingRunner {
         interval: Duration,
     ) -> JoinHandle<()>
     where
-        S: crate::icmpv4_socket::IcmpV4Socket + 'static,
+        S: crate::IcmpV4Socket + 'static,
     {
         std::thread::spawn(move || {
             'outer: for sequence_number in 0..count {
@@ -255,9 +255,16 @@ impl PingRunner {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tracing::Level;
+    use tracing_subscriber::FmtSubscriber;
 
     #[test]
     fn ping_localhost_with_datagram_socket_succeeds() {
+        // let subscriber = FmtSubscriber::builder()
+        //     .with_max_level(Level::TRACE)
+        //     .finish();
+        // tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+
         let ping_config = PingRunnerConfig {
             ips: &[Ipv4Addr::new(127, 0, 0, 1)],
             count: 1,
@@ -268,6 +275,7 @@ mod tests {
 
         let ping_runner = PingRunner::create(&ping_config).unwrap();
         let ping_output = ping_runner.next_ping_output();
+        println!("{:?}", ping_output);
         assert!(ping_output.is_ok());
     }
 

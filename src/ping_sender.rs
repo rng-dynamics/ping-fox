@@ -13,7 +13,7 @@ pub(crate) struct PingSender<S> {
 
 impl<S> PingSender<S>
 where
-    S: crate::icmpv4_socket::IcmpV4Socket + 'static,
+    S: crate::IcmpV4Socket + 'static,
 {
     pub(crate) fn new(
         icmpv4: Arc<IcmpV4>,

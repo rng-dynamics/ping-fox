@@ -8,7 +8,7 @@ pnet_packet = "0.31"
 rand = "0.8"
 socket2 = { version = "0.4", features = ["all"] }
 tracing = "0.1"
-tracing-subscriber = "0.2"
+tracing-subscriber = "0.3"
 
 [dev-dependencies]
 more-asserts = "0.3"

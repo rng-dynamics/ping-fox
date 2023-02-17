@@ -6,7 +6,7 @@ mod c_dgram_socket_api {
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 }
 
-use c_dgram_socket_api::RecvData;
+use c_dgram_socket_api::IcmpData;
 
 struct CDgramSocket {
     // socket: std::net::UdpSocket,
@@ -16,8 +16,17 @@ struct CDgramSocket {
 }
 
 impl CDgramSocket {
-    fn recv_from(&self) -> RecvData {
-        unsafe { c_dgram_socket_api::recv_from(self.socket, self.buffer, self.buffer_len) }
+    fn recv_from(&self) -> i32 {
+        unsafe {
+            let mut icmp_data: IcmpData = IcmpData {
+                data_buffer: self.buffer.cast::<u8>(),
+                data_buffer_size: self.buffer_len as u64,
+                n_data_bytes_received: 0,
+                ttl: 0,
+                addr_str: [0u8; 46],
+            };
+            c_dgram_socket_api::recv_from(self.socket, std::ptr::addr_of_mut!(icmp_data))
+        }
     }
 }
 
@@ -27,10 +36,19 @@ mod tests {
     use std::net::SocketAddr;
     use std::os::unix::io::IntoRawFd;
 
+    use tracing::Level;
+    use tracing_subscriber::FmtSubscriber;
+
     const BUFFER_LEN: usize = 256;
 
     #[test]
-    fn recv_from_succeeds() {
+    fn recv_from_2_succeeds() {
+        let subscriber = FmtSubscriber::builder()
+            .with_max_level(Level::TRACE)
+            .finish();
+        tracing::subscriber::set_global_default(subscriber)
+            .expect("setting default subscriber failed");
+
         let icmpv4 = crate::IcmpV4::create();
         let package = icmpv4.new_icmpv4_package(0).unwrap();
 
@@ -61,18 +79,9 @@ mod tests {
             buffer_len: BUFFER_LEN,
         };
 
-        let recv_data = c_dgram_socket.recv_from();
-        println!("{:?}", recv_data);
-        let addr_str: String = unsafe {
-            std::ffi::CStr::from_ptr(recv_data.addr_str.as_ptr().cast())
-                .to_str()
-                .unwrap()
-                .to_string()
-        };
-        println!(
-            "{:?}, {:?}, {:?}",
-            recv_data.bytes_received, addr_str, recv_data.ttl
-        );
-        // println!("{:?}", buffer);
+        let n_received = c_dgram_socket.recv_from();
+        assert!(n_received > 0);
+        println!("{:?}", n_received);
+        println!("{:?}", buffer);
     }
 }
