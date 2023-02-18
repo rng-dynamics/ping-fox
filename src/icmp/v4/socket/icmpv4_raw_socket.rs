@@ -1,9 +1,7 @@
-use std::{io, time::Duration};
-
+use super::{IcmpV4Socket, Ttl};
 use pnet_packet::{ipv4::Ipv4Packet, Packet};
 use socket2::{Domain, Protocol, Type};
-
-use super::{IcmpV4Socket, Ttl};
+use std::{io, time::Duration};
 
 struct RawSocket {
     socket: socket2::Socket,

@@ -1,8 +1,4 @@
-use std::io;
-use std::net::{IpAddr, Ipv4Addr};
-use std::result::Result;
-use std::time::Instant;
-
+use crate::PingError;
 use pnet_packet::icmp::{
     echo_reply::EchoReplyPacket,
     echo_request::{
@@ -13,8 +9,10 @@ use pnet_packet::icmp::{
 };
 use pnet_packet::Packet;
 use rand::Rng;
-
-use crate::PingError;
+use std::io;
+use std::net::{IpAddr, Ipv4Addr};
+use std::result::Result;
+use std::time::Instant;
 
 pub(crate) const PAYLOAD_SIZE: usize = 56;
 

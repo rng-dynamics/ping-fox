@@ -1,9 +1,7 @@
-use std::{io, os::unix::prelude::AsRawFd, time::Duration};
-
+use super::{IcmpV4Socket, Ttl};
 use c_dgram_socket_api::IcmpData;
 use socket2::{Domain, Protocol, Type};
-
-use super::{IcmpV4Socket, Ttl};
+use std::{io, os::unix::prelude::AsRawFd, time::Duration};
 
 mod c_dgram_socket_api {
     #![allow(non_upper_case_globals)]

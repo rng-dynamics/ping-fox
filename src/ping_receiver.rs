@@ -1,8 +1,7 @@
-use std::sync::Arc;
-
 use crate::event::{PingReceiveEvent, PingReceiveEventData, PingReceiveEventSender};
 use crate::IcmpV4;
 use crate::PingResult;
+use std::sync::Arc;
 
 pub(crate) struct PingReceiver<S> {
     socket: Arc<S>,

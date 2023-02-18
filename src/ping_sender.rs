@@ -1,9 +1,8 @@
-use std::net::Ipv4Addr;
-use std::sync::Arc;
-
 use crate::event::{PingSendEvent, PingSendEventSender};
 use crate::IcmpV4;
 use crate::PingResult;
+use std::net::Ipv4Addr;
+use std::sync::Arc;
 
 pub(crate) struct PingSender<S> {
     icmpv4: Arc<IcmpV4>,

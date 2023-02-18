@@ -1,10 +1,3 @@
-use std::collections::VecDeque;
-use std::net::Ipv4Addr;
-use std::sync::mpsc;
-use std::sync::Arc;
-use std::thread::JoinHandle;
-use std::time::Duration;
-
 use crate::event::{
     ping_receive_event_channel, ping_send_event_channel, ping_send_sync_event_channel,
     PingSentSyncEvent,
@@ -16,6 +9,12 @@ use crate::PingDataBuffer;
 use crate::PingError;
 use crate::PingReceiver;
 use crate::PingSender;
+use std::collections::VecDeque;
+use std::net::Ipv4Addr;
+use std::sync::mpsc;
+use std::sync::Arc;
+use std::thread::JoinHandle;
+use std::time::Duration;
 
 pub type PingResult<T> = std::result::Result<T, GenericError>;
 

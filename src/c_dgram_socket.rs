@@ -1,3 +1,5 @@
+use c_dgram_socket_api::IcmpData;
+
 mod c_dgram_socket_api {
     #![allow(non_upper_case_globals)]
     #![allow(non_camel_case_types)]
@@ -5,8 +7,6 @@ mod c_dgram_socket_api {
     #![allow(unused)]
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 }
-
-use c_dgram_socket_api::IcmpData;
 
 struct CDgramSocket {
     // socket: std::net::UdpSocket,

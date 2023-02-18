@@ -2,6 +2,16 @@
 #![warn(clippy::pedantic)]
 #![allow(clippy::missing_errors_doc)] // TODO
 
+pub use ping_output::*;
+pub use ping_runner::*;
+
+use icmp::v4::icmpv4::IcmpV4;
+use icmp::v4::socket::IcmpV4Socket;
+use ping_data_buffer::PingDataBuffer;
+use ping_error::{GenericError, PingError};
+use ping_receiver::PingReceiver;
+use ping_sender::PingSender;
+
 mod c_dgram_socket;
 mod event;
 mod icmp;
@@ -12,15 +22,6 @@ mod ping_receiver;
 mod ping_runner;
 mod ping_sender;
 
-use icmp::v4::icmpv4::IcmpV4;
-use icmp::v4::socket::IcmpV4Socket;
-use ping_data_buffer::PingDataBuffer;
-use ping_error::{GenericError, PingError};
-pub use ping_output::*;
-use ping_receiver::PingReceiver;
-pub use ping_runner::*;
-use ping_sender::PingSender;
-
 // TODO: remove
-mod socket;
 use socket::Socket;
+mod socket;

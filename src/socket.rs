@@ -1,9 +1,7 @@
+use pnet_packet::{ipv4::Ipv4Packet, Packet};
+use socket2::{Domain, Protocol, Type};
 use std::io;
 use std::time::Duration;
-
-use pnet_packet::{ipv4::Ipv4Packet, Packet};
-
-use socket2::{Domain, Protocol, Type};
 
 pub(crate) trait Socket: Send + Sync {
     fn send_to(&self, buf: &[u8], addr: &socket2::SockAddr) -> io::Result<usize>;
