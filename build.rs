@@ -6,10 +6,7 @@ use std::env;
 use std::path::PathBuf;
 
 fn main() {
-    cargo_emit::rerun_if_changed!(
-        "c_src/dgram_socket_api.c",
-        "c_src/dgram_socket_api.h",
-    );
+    cargo_emit::rerun_if_changed!("c_src/dgram_socket_api.c", "c_src/dgram_socket_api.h",);
 
     cc::Build::new()
         .file("c_src/dgram_socket_api.c")

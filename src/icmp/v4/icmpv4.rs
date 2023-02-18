@@ -16,7 +16,7 @@ use rand::Rng;
 
 use crate::PingError;
 
-const PAYLOAD_SIZE: usize = 56;
+pub(crate) const PAYLOAD_SIZE: usize = 56;
 
 pub(crate) struct IcmpV4 {
     payload: [u8; PAYLOAD_SIZE],

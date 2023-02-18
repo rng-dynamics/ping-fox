@@ -11,9 +11,8 @@ mod ping_output;
 mod ping_receiver;
 mod ping_runner;
 mod ping_sender;
-mod socket;
 
-use icmp::v4::api::IcmpV4;
+use icmp::v4::icmpv4::IcmpV4;
 use icmp::v4::socket::IcmpV4Socket;
 use ping_data_buffer::PingDataBuffer;
 use ping_error::{GenericError, PingError};
@@ -21,4 +20,7 @@ pub use ping_output::*;
 use ping_receiver::PingReceiver;
 pub use ping_runner::*;
 use ping_sender::PingSender;
+
+// TODO: remove
+mod socket;
 use socket::Socket;

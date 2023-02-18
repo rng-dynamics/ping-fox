@@ -65,11 +65,17 @@ impl PingRunner {
         let socket_timeout = Duration::from_millis(2000); // TODO
         match config.socket_type {
             SocketType::DGRAM => {
-                let socket = Arc::new(crate::icmp::v4::socket::create_dgram_socket(socket_timeout)?);
+                let socket = Arc::new(
+                    crate::icmp::v4::socket::icmpv4_dgram_socket::create_dgram_socket(
+                        socket_timeout,
+                    )?,
+                );
                 Ok(Self::create_with_socket(config, socket))
             }
             SocketType::RAW => {
-                let socket = Arc::new(crate::icmp::v4::socket::create_raw_socket(socket_timeout)?);
+                let socket = Arc::new(
+                    crate::icmp::v4::socket::icmpv4_raw_socket::create_raw_socket(socket_timeout)?,
+                );
                 Ok(Self::create_with_socket(config, socket))
             }
         }
