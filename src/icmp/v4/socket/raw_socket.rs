@@ -1,31 +1,28 @@
-use super::{IcmpV4Socket, Ttl};
+use super::{Socket, Ttl};
 use pnet_packet::{ipv4::Ipv4Packet, Packet};
 use socket2::{Domain, Protocol, Type};
 use std::{io, time::Duration};
 
-struct RawSocket {
+pub(crate) struct RawSocket {
     socket: socket2::Socket,
 }
 
-// TODO: Create an idomatic `new` function instead of this function.
-pub(crate) fn create_raw_socket(timeout: Duration) -> Result<impl IcmpV4Socket, io::Error> {
-    let socket = socket2::Socket::new(Domain::IPV4, Type::RAW, Some(Protocol::ICMPV4))?;
-    socket
-        .set_read_timeout(Some(timeout))
-        .expect("could not set socket timeout");
-    Ok(RawSocket { socket })
+impl RawSocket {
+    pub(crate) fn create(timeout: Duration) -> Result<impl Socket, io::Error> {
+        let socket = socket2::Socket::new(Domain::IPV4, Type::RAW, Some(Protocol::ICMPV4))?;
+        socket
+            .set_read_timeout(Some(timeout))
+            .expect("could not set socket timeout");
+        Ok(RawSocket { socket })
+    }
 }
 
-impl IcmpV4Socket for RawSocket {
+impl Socket for RawSocket {
     fn send_to(&self, buf: &[u8], addr: &socket2::SockAddr) -> io::Result<usize> {
         self.socket.send_to(buf, addr)
     }
 
-    fn recv_from(
-        &self,
-        // buf: &mut [std::mem::MaybeUninit<u8>],
-        buf: &mut [u8],
-    ) -> io::Result<(usize, std::net::IpAddr, Ttl)> {
+    fn recv_from(&self, buf: &mut [u8]) -> io::Result<(usize, std::net::IpAddr, Ttl)> {
         let mut recv_buf = [0u8; 256];
 
         // Socket2 gives a safety guaranty which allows us to do an unsafe cast from `&mut [u8]`

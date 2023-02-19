@@ -5,8 +5,7 @@
 pub use ping_output::*;
 pub use ping_runner::*;
 
-use icmp::v4::icmpv4::IcmpV4;
-use icmp::v4::socket::IcmpV4Socket;
+use icmp::v4::IcmpV4;
 use ping_data_buffer::PingDataBuffer;
 use ping_error::{GenericError, PingError};
 use ping_receiver::PingReceiver;

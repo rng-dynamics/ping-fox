@@ -64,17 +64,11 @@ impl PingRunner {
         let socket_timeout = Duration::from_millis(2000); // TODO
         match config.socket_type {
             SocketType::DGRAM => {
-                let socket = Arc::new(
-                    crate::icmp::v4::socket::icmpv4_dgram_socket::create_dgram_socket(
-                        socket_timeout,
-                    )?,
-                );
+                let socket = Arc::new(crate::icmp::v4::CDgramSocket::create(socket_timeout)?);
                 Ok(Self::create_with_socket(config, socket))
             }
             SocketType::RAW => {
-                let socket = Arc::new(
-                    crate::icmp::v4::socket::icmpv4_raw_socket::create_raw_socket(socket_timeout)?,
-                );
+                let socket = Arc::new(crate::icmp::v4::RawSocket::create(socket_timeout)?);
                 Ok(Self::create_with_socket(config, socket))
             }
         }
@@ -82,7 +76,7 @@ impl PingRunner {
 
     fn create_with_socket<S>(config: &PingRunnerConfig<'_>, socket: Arc<S>) -> Self
     where
-        S: crate::IcmpV4Socket + 'static,
+        S: crate::icmp::v4::Socket + 'static,
     {
         let mut deque = VecDeque::<Ipv4Addr>::new();
         for ip in config.ips {
@@ -186,7 +180,7 @@ impl PingRunner {
         ping_send_sync_event_rx: mpsc::Receiver<PingSentSyncEvent>,
     ) -> JoinHandle<()>
     where
-        S: crate::IcmpV4Socket + 'static,
+        S: crate::icmp::v4::Socket + 'static,
     {
         std::thread::spawn(move || {
             'outer: loop {
@@ -224,7 +218,7 @@ impl PingRunner {
         interval: Duration,
     ) -> JoinHandle<()>
     where
-        S: crate::IcmpV4Socket + 'static,
+        S: crate::icmp::v4::Socket + 'static,
     {
         std::thread::spawn(move || {
             'outer: for sequence_number in 0..count {

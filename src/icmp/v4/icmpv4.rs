@@ -34,7 +34,7 @@ impl IcmpV4 {
         sequence_number: u16,
     ) -> Result<(usize, IpAddr, u16, Instant), PingError>
     where
-        S: crate::IcmpV4Socket,
+        S: crate::icmp::v4::Socket,
     {
         let ip_addr = IpAddr::V4(ipv4);
         let addr = std::net::SocketAddr::new(ip_addr, 0);
@@ -54,7 +54,7 @@ impl IcmpV4 {
         socket: &S,
     ) -> std::result::Result<Option<(usize, IpAddr, u16, Instant)>, io::Error>
     where
-        S: crate::IcmpV4Socket,
+        S: crate::icmp::v4::Socket,
     {
         let mut buf1 = [0u8; 256];
         match socket.recv_from(&mut buf1) {

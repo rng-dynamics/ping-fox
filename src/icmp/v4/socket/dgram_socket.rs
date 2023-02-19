@@ -1,9 +1,8 @@
-use super::{IcmpV4Socket, Ttl};
-use c_dgram_socket_api::IcmpData;
+use super::{Socket, Ttl};
 use socket2::{Domain, Protocol, Type};
 use std::{io, os::unix::prelude::AsRawFd, time::Duration};
 
-mod c_dgram_socket_api {
+mod c_icmp_dgram_api {
     #![allow(non_upper_case_globals)]
     #![allow(non_camel_case_types)]
     #![allow(non_snake_case)]
@@ -11,28 +10,28 @@ mod c_dgram_socket_api {
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 }
 
-// TODO: rename
-struct CApiDgramIcmpV4Socket {
+pub(crate) struct CDgramSocket {
     socket: socket2::Socket,
 }
 
-// TODO: Create an idomatic `new` function instead of this function.
-pub(crate) fn create_dgram_socket(timeout: Duration) -> Result<impl IcmpV4Socket, io::Error> {
-    tracing::trace!("creating icmpv4_socket::CApiDgramIcmpV4Socket");
-    let socket = socket2::Socket::new(Domain::IPV4, Type::DGRAM, Some(Protocol::ICMPV4))?;
-    socket
-        .set_read_timeout(Some(timeout))
-        .expect("could not set socket timeout");
-    Ok(CApiDgramIcmpV4Socket { socket })
+impl CDgramSocket {
+    pub(crate) fn create(timeout: Duration) -> Result<impl Socket, io::Error> {
+        tracing::trace!("creating icmpv4_socket::CApiDgramIcmpV4Socket");
+        let socket = socket2::Socket::new(Domain::IPV4, Type::DGRAM, Some(Protocol::ICMPV4))?;
+        socket
+            .set_read_timeout(Some(timeout))
+            .expect("could not set socket timeout");
+        Ok(CDgramSocket { socket })
+    }
 }
 
-impl IcmpV4Socket for CApiDgramIcmpV4Socket {
+impl Socket for CDgramSocket {
     fn send_to(&self, buf: &[u8], addr: &socket2::SockAddr) -> io::Result<usize> {
         self.socket.send_to(buf, addr)
     }
 
     fn recv_from(&self, buf: &mut [u8]) -> io::Result<(usize, std::net::IpAddr, Ttl)> {
-        let mut icmp_data: IcmpData = IcmpData {
+        let mut icmp_data = c_icmp_dgram_api::IcmpData {
             data_buffer: buf.as_mut_ptr(),
             data_buffer_size: buf.len() as u64,
             n_data_bytes_received: 0,
@@ -42,7 +41,7 @@ impl IcmpV4Socket for CApiDgramIcmpV4Socket {
 
         let raw_fd: std::ffi::c_int = self.socket.as_raw_fd();
         let n_bytes_received =
-            unsafe { c_dgram_socket_api::recv_from(raw_fd, std::ptr::addr_of_mut!(icmp_data)) };
+            unsafe { c_icmp_dgram_api::recv_from(raw_fd, std::ptr::addr_of_mut!(icmp_data)) };
         if n_bytes_received < 0 {
             return Err(io::Error::new(
                 io::ErrorKind::Other,
