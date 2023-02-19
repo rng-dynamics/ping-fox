@@ -16,9 +16,9 @@ typedef struct IcmpData {
  * @param socket The socket file descriptor.
  * @param data Points to an ImcpData structure acting as the buffer to store the
  * incoming message and its metadata.
- * @return On success, recv_from shall return the number of bytes received. If
+ * @return On success, recv_from will return the number of bytes received. If
  * no messages are available to be received and the peer has performed an
- * orderly shutdown, recv_from shall return 0. Otherwise, a negative number
- * shall be returned.
+ * orderly shutdown, recv_from will return 0. Otherwise, a negative number
+ * will be returned.
  */
 int recv_from(int socket, IcmpData *data);
