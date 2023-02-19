@@ -80,6 +80,8 @@ def generate_report():
             "--ignore-not-existing",
             "--ignore",
             "/*",
+            "--ignore",
+            "target/debug/build/*",
             "-o",
             "./target/debug/lcov.info",
         ],
