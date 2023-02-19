@@ -1,5 +1,6 @@
 ## TODO
 
+- Can we have coverage of the extern c code?
 - The count in PingRunner does not seem to work. (Try the cli example.)
 - Handle timeout-event in ping-data-buffer.
 - Instant::now(): apply dependency inversion and mock it in tests.
