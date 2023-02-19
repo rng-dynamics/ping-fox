@@ -34,7 +34,7 @@ impl IcmpV4 {
         sequence_number: u16,
     ) -> Result<(usize, IpAddr, u16, Instant), PingError>
     where
-        S: crate::icmp::v4::Socket,
+        S: crate::icmp::v4::socket::Socket,
     {
         let ip_addr = IpAddr::V4(ipv4);
         let addr = std::net::SocketAddr::new(ip_addr, 0);
@@ -54,7 +54,7 @@ impl IcmpV4 {
         socket: &S,
     ) -> std::result::Result<Option<(usize, IpAddr, u16, Instant)>, io::Error>
     where
-        S: crate::icmp::v4::Socket,
+        S: crate::icmp::v4::socket::Socket,
     {
         let mut buf1 = [0u8; 256];
         match socket.recv_from(&mut buf1) {
@@ -92,36 +92,36 @@ impl IcmpV4 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::socket::tests::OnReceive;
-    use crate::socket::tests::OnSend;
-    use crate::socket::tests::SocketMock;
+    use crate::icmp::v4::socket::tests::OnReceive;
+    use crate::icmp::v4::socket::tests::OnSend;
+    use crate::icmp::v4::socket::tests::SocketMock;
 
-    // #[test]
-    // fn test_send_one_ping() {
-    //     let socket_mock = SocketMock::new(OnSend::ReturnDefault, OnReceive::ReturnWouldBlock);
-    //     let icmpv4 = IcmpV4::create();
+    #[test]
+    fn test_send_one_ping() {
+        let socket_mock = SocketMock::new(OnSend::ReturnDefault, OnReceive::ReturnWouldBlock);
+        let icmpv4 = IcmpV4::create();
 
-    //     let addr = Ipv4Addr::new(127, 0, 0, 1);
-    //     let sequence_number = 1;
-    //     let result = icmpv4.send_one_ping(&socket_mock, addr, sequence_number);
+        let addr = Ipv4Addr::new(127, 0, 0, 1);
+        let sequence_number = 1;
+        let result = icmpv4.send_one_ping(&socket_mock, addr, sequence_number);
 
-    //     assert!(result.is_ok());
-    //     socket_mock
-    //         .should_send_number_of_messages(1)
-    //         .should_send_to_address(&IpAddr::V4(addr));
-    // }
+        assert!(result.is_ok());
+        socket_mock
+            .should_send_number_of_messages(1)
+            .should_send_to_address(&IpAddr::V4(addr));
+    }
 
-    // #[test]
-    // fn test_try_receive() {
-    //     let socket_mock = SocketMock::new(OnSend::ReturnDefault, OnReceive::ReturnDefault(1));
+    #[test]
+    fn test_try_receive() {
+        let socket_mock = SocketMock::new(OnSend::ReturnDefault, OnReceive::ReturnDefault(1));
 
-    //     let result = IcmpV4::try_receive(&socket_mock);
+        let result = IcmpV4::try_receive(&socket_mock);
 
-    //     assert!(result.is_ok());
-    //     assert!(result.as_ref().unwrap().is_some());
-    //     let (n, addr, _sn, _receive_time) = result.unwrap().unwrap();
-    //     assert!(n >= EchoReplyPacket::minimum_packet_size());
-    //     assert!(addr == Ipv4Addr::new(127, 0, 0, 1));
-    //     socket_mock.should_receive_number_of_messages(1);
-    // }
+        assert!(result.is_ok());
+        assert!(result.as_ref().unwrap().is_some());
+        let (n, addr, _sn, _receive_time) = result.unwrap().unwrap();
+        assert!(n >= EchoReplyPacket::minimum_packet_size());
+        assert!(addr == Ipv4Addr::new(127, 0, 0, 1));
+        socket_mock.should_receive_number_of_messages(1);
+    }
 }

@@ -28,11 +28,11 @@ fn main() -> Result<(), GenericError> {
     for arg in std::env::args().skip(1) {
         addresses.push(arg.parse::<Ipv4Addr>()?);
     }
-    let count = addresses.len();
+    let n_addresses = addresses.len();
 
     let ping_config = PingRunnerConfig {
         ips: &addresses,
-        count: 1,
+        count: 2,
         interval: Duration::from_secs(1),
         channel_size: 8,
         socket_type: SocketType::DGRAM,
@@ -40,7 +40,7 @@ fn main() -> Result<(), GenericError> {
 
     let ping_runner = PingRunner::create(&ping_config)?;
 
-    for _ in 0..count {
+    for _ in 0..n_addresses {
         match ping_runner.next_ping_output() {
             Ok(ok) => {
                 let PingOutput {

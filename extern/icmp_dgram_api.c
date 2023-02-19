@@ -7,14 +7,10 @@
 #include <string.h> // TODO: remove
 #include <sys/socket.h>
 
-#include <stdio.h> // TODO: remove
-
 int recv_from(int socket, IcmpData *data) {
-  printf("(c) recv_from_2 start\n");
   int yes = 1;
   if (0 != setsockopt(socket, IPPROTO_IP, IP_RECVTTL, &yes, sizeof(yes))) {
     // error setting socket option receive-TTL
-    printf("(c) error: %d, %s\n", errno, strerror(errno));
     return -1;
   }
 
@@ -63,16 +59,13 @@ int recv_from(int socket, IcmpData *data) {
     // Socket opetions are not standardized:
     // Linux: IP_TTL
     // BSD: IP_RECVTTL
-    printf("(c) in loop %i\n", cmsg->cmsg_type);
     if (cmsg->cmsg_level == IPPROTO_IP &&
         // cmsg->cmsg_type == IP_RECVTTL) {
         cmsg->cmsg_type == IP_TTL) {
-      printf("(c) cmsg->cmsg_len == %zu\n", cmsg->cmsg_len);
       // uint8_t *ttl_ptr = (uint8_t *)((cmsg)->__cmsg_data);
       uint8_t *ttl_ptr = (uint8_t *)CMSG_DATA(cmsg);
       data->ttl = *ttl_ptr;
       is_ttl_received = true;
-      printf("(c) reading ttl OK %d\n", data->ttl);
       break;
     }
   }

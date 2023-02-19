@@ -77,3 +77,36 @@ unsafe fn str_from_null_terminated_utf8(s: &[u8]) -> &str {
         .to_str()
         .unwrap()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::net::SocketAddr;
+
+    const BUFFER_LEN: usize = 256;
+
+    #[test]
+    fn recv_from_succeeds() {
+        let icmpv4 = crate::IcmpV4::create();
+        let package = icmpv4.new_icmpv4_package(0).unwrap();
+
+        let dgram_socket =
+            CDgramSocket::create(super::super::default_timeout()).expect("error creating socket");
+
+        dgram_socket
+            .send_to(
+                pnet_packet::Packet::packet(&package),
+                // &"127.0.0.1:7".parse::<SocketAddr>().unwrap().into(),
+                // &"8.8.8.8:7".parse::<SocketAddr>().unwrap().into(),
+                &"127.0.0.1:0".parse::<SocketAddr>().unwrap().into(),
+            )
+            .unwrap();
+
+        let mut buffer = [0u8; BUFFER_LEN];
+
+        let result = dgram_socket.recv_from(&mut buffer);
+        assert!(result.is_ok());
+        let (n_bytes, _addr, _ttl) = result.unwrap();
+        assert!(n_bytes > 0);
+    }
+}

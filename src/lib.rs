@@ -11,7 +11,6 @@ use ping_error::{GenericError, PingError};
 use ping_receiver::PingReceiver;
 use ping_sender::PingSender;
 
-mod c_dgram_socket;
 mod event;
 mod icmp;
 mod ping_data_buffer;
@@ -20,7 +19,3 @@ mod ping_output;
 mod ping_receiver;
 mod ping_runner;
 mod ping_sender;
-
-// TODO: remove
-use socket::Socket;
-mod socket;
