@@ -47,14 +47,14 @@ impl Socket for CDgramSocket {
         if n_bytes_received < 0 {
             return Err(io::Error::new(
                 io::ErrorKind::Other,
-                format!("error {} reading from socket", n_bytes_received),
+                format!("error {n_bytes_received} reading from socket"),
             ));
         }
         if n_bytes_received == 0 {
             return Err(io::Error::new(io::ErrorKind::Other, "socket closed"));
         }
         let addr_str: String = str_from_null_terminated_utf8_safe(&icmp_data.addr_str).to_string();
-        println!("{:?}", addr_str);
+        println!("{addr_str:?}");
         Ok((
             icmp_data.n_data_bytes_received,
             addr_str

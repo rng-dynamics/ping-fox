@@ -62,7 +62,6 @@ impl IcmpV4 {
         match socket.recv_from(&mut buf1) {
             Err(e) if e.kind() == io::ErrorKind::WouldBlock => Ok(None),
             Err(e) => Err(e),
-            // TODO: contiue here: fix all clippy warnings
             Ok((package_size, ip_addr, ttl)) => {
                 let receive_time: Instant = Instant::now();
                 let echo_reply_package =
