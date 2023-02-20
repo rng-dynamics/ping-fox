@@ -1,4 +1,5 @@
-use super::{Socket, Ttl};
+use super::Socket;
+use crate::Ttl;
 use pnet_packet::{ipv4::Ipv4Packet, Packet};
 use socket2::{Domain, Protocol, Type};
 use std::{io, time::Duration};

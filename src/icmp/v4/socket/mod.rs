@@ -1,9 +1,8 @@
+use crate::Ttl;
 use std::{io, time::Duration};
-use ttl::Ttl;
 
 pub(crate) mod dgram_socket;
 pub(crate) mod raw_socket;
-mod ttl;
 
 pub(crate) trait Socket: Send + Sync {
     fn send_to(&self, buf: &[u8], addr: &socket2::SockAddr) -> io::Result<usize>;

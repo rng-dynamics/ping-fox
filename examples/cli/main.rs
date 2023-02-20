@@ -46,12 +46,13 @@ fn main() -> Result<(), GenericError> {
                 let PingOutput {
                     package_size: payload_size,
                     ip_addr,
+                    ttl,
                     sequence_number,
                     ping_duration,
                 } = ok;
                 println!(
-                    "Ok {} {} {} {:#?}",
-                    payload_size, ip_addr, sequence_number, ping_duration
+                    "{} bytes from {}: icmp_seq={} ttl={} time={:?}",
+                    payload_size, ip_addr, sequence_number, ttl, ping_duration
                 );
             }
             Err(e) => {

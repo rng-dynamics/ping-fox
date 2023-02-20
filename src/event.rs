@@ -1,3 +1,4 @@
+use crate::PingReceiveData;
 use std::time::Instant;
 use std::{net::IpAddr, sync::mpsc};
 
@@ -26,16 +27,9 @@ pub(crate) fn ping_send_event_channel(
 }
 
 #[derive(PartialEq, Eq)]
-pub(crate) struct PingReceiveEventData {
-    pub package_size: usize,
-    pub ip_addr: IpAddr,
-    pub sequence_number: u16,
-    pub receive_time: Instant,
-}
-#[derive(PartialEq, Eq)]
 pub(crate) enum PingReceiveEvent {
     Timeout,
-    Data(PingReceiveEventData),
+    Data(PingReceiveData),
 }
 pub(crate) type PingReceiveEventSender = mpsc::SyncSender<PingReceiveEvent>;
 pub(crate) type PingReceiveEventReceiver = mpsc::Receiver<PingReceiveEvent>;

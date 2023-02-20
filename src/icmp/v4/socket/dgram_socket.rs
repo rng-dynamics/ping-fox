@@ -1,8 +1,10 @@
-use super::{Socket, Ttl};
+use super::Socket;
+use crate::Ttl;
 use socket2::{Domain, Protocol, Type};
 use std::{io, os::unix::prelude::AsRawFd, time::Duration};
 
 mod c_icmp_dgram_api {
+    #![allow(clippy::pedantic)]
     #![allow(non_upper_case_globals)]
     #![allow(non_camel_case_types)]
     #![allow(non_snake_case)]

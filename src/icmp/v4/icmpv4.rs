@@ -1,4 +1,5 @@
 use crate::PingError;
+use crate::PingReceiveData;
 use pnet_packet::icmp::{
     echo_reply::EchoReplyPacket,
     echo_request::{
@@ -52,7 +53,7 @@ impl IcmpV4 {
 
     pub(crate) fn try_receive<S>(
         socket: &S,
-    ) -> std::result::Result<Option<(usize, IpAddr, u16, Instant)>, io::Error>
+    ) -> std::result::Result<Option<PingReceiveData>, io::Error>
     where
         S: crate::icmp::v4::socket::Socket,
     {
@@ -60,13 +61,19 @@ impl IcmpV4 {
         match socket.recv_from(&mut buf1) {
             Err(e) if e.kind() == io::ErrorKind::WouldBlock => Ok(None),
             Err(e) => Err(e),
-            Ok((n, addr, ttl)) => {
+            // TODO: contiue here: fix all clippy warnings
+            Ok((package_size, ip_addr, ttl)) => {
                 let receive_time: Instant = Instant::now();
                 let echo_reply_package =
                     EchoReplyPacket::new(&buf1).expect("could not initialize echo reply package");
-                let sn = echo_reply_package.get_sequence_number();
-                // TODO: use TTL
-                Ok(Some((n, addr, sn, receive_time)))
+                let sequence_number = echo_reply_package.get_sequence_number();
+                Ok(Some(PingReceiveData {
+                    package_size,
+                    ip_addr,
+                    ttl,
+                    sequence_number,
+                    receive_time,
+                }))
             }
         }
     }
@@ -119,9 +126,15 @@ mod tests {
 
         assert!(result.is_ok());
         assert!(result.as_ref().unwrap().is_some());
-        let (n, addr, _sn, _receive_time) = result.unwrap().unwrap();
-        assert!(n >= EchoReplyPacket::minimum_packet_size());
-        assert!(addr == Ipv4Addr::new(127, 0, 0, 1));
+        let PingReceiveData {
+            package_size,
+            ip_addr,
+            ttl: _,
+            sequence_number: _,
+            receive_time: _,
+        } = result.unwrap().unwrap();
+        assert!(package_size >= EchoReplyPacket::minimum_packet_size());
+        assert!(ip_addr == Ipv4Addr::new(127, 0, 0, 1));
         socket_mock.should_receive_number_of_messages(1);
     }
 }

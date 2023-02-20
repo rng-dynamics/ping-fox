@@ -1,4 +1,4 @@
-use crate::event::{PingReceiveEvent, PingReceiveEventData, PingReceiveEventSender};
+use crate::event::{PingReceiveEvent, PingReceiveEventSender};
 use crate::IcmpV4;
 use crate::PingResult;
 use std::sync::Arc;
@@ -31,16 +31,11 @@ where
             Err(e) => {
                 tracing::error!("error receiving icmp: {}", e);
             }
-            Ok(Some((package_size, ip_addr, sequence_number, receive_time))) => {
+            Ok(Some(ping_receive_data)) => {
                 tracing::trace!("icmpv4 received");
                 // (3) Send ping-received-event.
                 self.ping_received_event_tx
-                    .send(PingReceiveEvent::Data(PingReceiveEventData {
-                        package_size,
-                        ip_addr,
-                        sequence_number,
-                        receive_time,
-                    }))?;
+                    .send(PingReceiveEvent::Data(ping_receive_data))?;
             }
         }
         Ok(())

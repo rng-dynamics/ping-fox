@@ -1,8 +1,8 @@
 use crate::event::{
-    PingReceiveEvent, PingReceiveEventData, PingReceiveEventReceiver, PingSendEvent,
-    PingSendEventReceiver,
+    PingReceiveEvent, PingReceiveEventReceiver, PingSendEvent, PingSendEventReceiver,
 };
 use crate::ping_output::{PingOutput, PingOutputSender};
+use crate::PingReceiveData;
 use std::collections::HashMap;
 use std::net::IpAddr;
 use std::time::Instant;
@@ -52,9 +52,10 @@ impl PingDataBuffer {
         while let Ok(ping_receive_event) = self.ping_receive_event_rx.try_recv() {
             match ping_receive_event {
                 PingReceiveEvent::Data(receive_data) => {
-                    let PingReceiveEventData {
+                    let PingReceiveData {
                         package_size,
                         ip_addr,
+                        ttl,
                         sequence_number,
                         receive_time,
                     } = receive_data;
@@ -67,6 +68,7 @@ impl PingDataBuffer {
                             let send_result = self.ping_output_tx.send(PingOutput {
                                 package_size,
                                 ip_addr,
+                                ttl,
                                 sequence_number,
                                 ping_duration: receive_time - send_time,
                             });

@@ -1,3 +1,4 @@
+use crate::Ttl;
 use std::net::IpAddr;
 use std::sync::mpsc;
 use std::time::Duration;
@@ -6,6 +7,7 @@ use std::time::Duration;
 pub struct PingOutput {
     pub package_size: usize,
     pub ip_addr: IpAddr,
+    pub ttl: Ttl,
     pub sequence_number: u16,
     pub ping_duration: Duration,
 }
