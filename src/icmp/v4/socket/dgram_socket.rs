@@ -83,6 +83,7 @@ unsafe fn str_from_null_terminated_utf8(s: &[u8]) -> &str {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::SequenceNumber;
     use std::net::SocketAddr;
 
     const BUFFER_LEN: usize = 256;
@@ -90,7 +91,7 @@ mod tests {
     #[test]
     fn recv_from_succeeds() {
         let icmpv4 = crate::IcmpV4::create();
-        let package = icmpv4.new_icmpv4_package(0).unwrap();
+        let package = icmpv4.new_icmpv4_package(SequenceNumber(0)).unwrap();
 
         let dgram_socket =
             CDgramSocket::create(super::super::default_timeout()).expect("error creating socket");

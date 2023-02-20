@@ -1,4 +1,4 @@
-use crate::PingReceiveData;
+use crate::{PingReceiveData, SequenceNumber};
 use std::time::Instant;
 use std::{net::IpAddr, sync::mpsc};
 
@@ -15,7 +15,7 @@ pub(crate) fn ping_send_sync_event_channel(
 pub(crate) struct PingSendEvent {
     pub payload_size: usize,
     pub ip_addr: IpAddr,
-    pub sequence_number: u16,
+    pub sequence_number: SequenceNumber,
     pub send_time: Instant,
 }
 pub(crate) type PingSendEventSender = mpsc::SyncSender<PingSendEvent>;

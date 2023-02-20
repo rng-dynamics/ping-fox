@@ -1,4 +1,4 @@
-use crate::Ttl;
+use crate::{SequenceNumber, Ttl};
 use std::net::IpAddr;
 use std::time::Instant;
 
@@ -7,6 +7,6 @@ pub(crate) struct PingReceiveData {
     pub package_size: usize,
     pub ip_addr: IpAddr,
     pub ttl: Ttl,
-    pub sequence_number: u16,
+    pub sequence_number: SequenceNumber,
     pub receive_time: Instant,
 }

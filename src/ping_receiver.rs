@@ -50,6 +50,7 @@ mod tests {
     use crate::icmp::v4::socket::tests::OnSend;
     use crate::icmp::v4::socket::tests::SocketMock;
     use crate::PingSender;
+    use crate::SequenceNumber;
     use std::net::Ipv4Addr;
 
     const CHANNEL_SIZE: usize = 8;
@@ -87,9 +88,15 @@ mod tests {
         let ping_sender = PingSender::new(icmpv4, socket_mock.clone(), ping_send_event_tx);
 
         let ip_127_0_0_1 = Ipv4Addr::new(127, 0, 0, 1);
-        ping_sender.send_one(ip_127_0_0_1, 0).unwrap();
-        ping_sender.send_one(ip_127_0_0_1, 1).unwrap();
-        ping_sender.send_one(ip_127_0_0_1, 2).unwrap();
+        ping_sender
+            .send_one(ip_127_0_0_1, SequenceNumber(0))
+            .unwrap();
+        ping_sender
+            .send_one(ip_127_0_0_1, SequenceNumber(1))
+            .unwrap();
+        ping_sender
+            .send_one(ip_127_0_0_1, SequenceNumber(2))
+            .unwrap();
 
         let ping_receiver = PingReceiver::new(socket_mock, tx_2);
         ping_receiver.receive().unwrap();
@@ -122,7 +129,9 @@ mod tests {
         let (ping_sent_event_tx, _ping_sent_event_rx) = ping_send_event_channel(CHANNEL_SIZE);
         let ping_sender = PingSender::new(icmpv4, socket_mock.clone(), ping_sent_event_tx);
         let ip_127_0_0_1 = Ipv4Addr::new(127, 0, 0, 1);
-        ping_sender.send_one(ip_127_0_0_1, 0).unwrap();
+        ping_sender
+            .send_one(ip_127_0_0_1, SequenceNumber(0))
+            .unwrap();
 
         let ping_receiver = PingReceiver::new(socket_mock, tx_2);
         let receive_result = ping_receiver.receive();

@@ -2,7 +2,7 @@ use crate::event::{
     PingReceiveEvent, PingReceiveEventReceiver, PingSendEvent, PingSendEventReceiver,
 };
 use crate::ping_output::{PingOutput, PingOutputSender};
-use crate::PingReceiveData;
+use crate::{PingReceiveData, SequenceNumber};
 use std::collections::HashMap;
 use std::net::IpAddr;
 use std::time::Instant;
@@ -13,7 +13,7 @@ pub(crate) struct PingDataBuffer {
 
     ping_output_tx: PingOutputSender,
     // ping_output_rx: mpsc::Receiver<PingOutput>,
-    send_events: HashMap<(u16, IpAddr), (usize, Instant)>,
+    send_events: HashMap<(SequenceNumber, IpAddr), (usize, Instant)>,
 }
 
 impl PingDataBuffer {
@@ -68,8 +68,8 @@ impl PingDataBuffer {
                             let send_result = self.ping_output_tx.send(PingOutput {
                                 package_size,
                                 ip_addr,
-                                ttl,
-                                sequence_number,
+                                ttl: ttl.into(),
+                                sequence_number: sequence_number.into(),
                                 ping_duration: receive_time - send_time,
                             });
                             if let Err(e) = send_result {

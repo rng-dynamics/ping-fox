@@ -1,9 +1,15 @@
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Ttl(pub u8);
 
 impl From<u8> for Ttl {
     fn from(integer: u8) -> Self {
         Ttl(integer)
+    }
+}
+
+impl From<Ttl> for u8 {
+    fn from(ttl: Ttl) -> Self {
+        ttl.0
     }
 }
 

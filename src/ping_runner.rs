@@ -2,7 +2,6 @@ use crate::event::{
     ping_receive_event_channel, ping_send_event_channel, ping_send_sync_event_channel,
     PingSentSyncEvent,
 };
-use crate::icmp;
 use crate::ping_output::{ping_output_channel, PingOutput, PingOutputReceiver};
 use crate::GenericError;
 use crate::IcmpV4;
@@ -10,6 +9,7 @@ use crate::PingDataBuffer;
 use crate::PingError;
 use crate::PingReceiver;
 use crate::PingSender;
+use crate::{icmp, SequenceNumber};
 use std::collections::VecDeque;
 use std::net::Ipv4Addr;
 use std::sync::mpsc;
@@ -224,7 +224,10 @@ impl PingRunner {
         std::thread::spawn(move || {
             'outer: for sequence_number in 0..count {
                 for ip in &ips {
-                    if ping_sender.send_one(*ip, sequence_number).is_err() {
+                    if ping_sender
+                        .send_one(*ip, SequenceNumber(sequence_number))
+                        .is_err()
+                    {
                         tracing::error!("PingSender::send_one() failed");
                         break 'outer;
                     }

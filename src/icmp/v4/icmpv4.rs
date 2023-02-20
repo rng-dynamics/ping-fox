@@ -1,5 +1,6 @@
 use crate::PingError;
 use crate::PingReceiveData;
+use crate::SequenceNumber;
 use pnet_packet::icmp::{
     echo_reply::EchoReplyPacket,
     echo_request::{
@@ -32,8 +33,8 @@ impl IcmpV4 {
         &self,
         socket: &S,
         ipv4: Ipv4Addr,
-        sequence_number: u16,
-    ) -> Result<(usize, IpAddr, u16, Instant), PingError>
+        sequence_number: SequenceNumber,
+    ) -> Result<(usize, IpAddr, SequenceNumber, Instant), PingError>
     where
         S: crate::icmp::v4::socket::Socket,
     {
@@ -66,7 +67,8 @@ impl IcmpV4 {
                 let receive_time: Instant = Instant::now();
                 let echo_reply_package =
                     EchoReplyPacket::new(&buf1).expect("could not initialize echo reply package");
-                let sequence_number = echo_reply_package.get_sequence_number();
+                let sequence_number: SequenceNumber =
+                    echo_reply_package.get_sequence_number().into();
                 Ok(Some(PingReceiveData {
                     package_size,
                     ip_addr,
@@ -80,11 +82,11 @@ impl IcmpV4 {
 
     pub(crate) fn new_icmpv4_package(
         &self,
-        sequence_number: u16,
+        sequence_number: SequenceNumber,
     ) -> Option<MutableEchoRequestPacketV4<'static>> {
         let buf = vec![0u8; EchoRequestPacketV4::minimum_packet_size() + PAYLOAD_SIZE];
         let mut package = MutableEchoRequestPacketV4::owned(buf)?;
-        package.set_sequence_number(sequence_number);
+        package.set_sequence_number(sequence_number.0);
         package.set_identifier(0);
         package.set_icmp_type(IcmpTypes::EchoRequest);
         package.set_payload(&self.payload);
@@ -109,7 +111,7 @@ mod tests {
         let icmpv4 = IcmpV4::create();
 
         let addr = Ipv4Addr::new(127, 0, 0, 1);
-        let sequence_number = 1;
+        let sequence_number = SequenceNumber(1);
         let result = icmpv4.send_one_ping(&socket_mock, addr, sequence_number);
 
         assert!(result.is_ok());
