@@ -12,7 +12,7 @@ pub(crate) struct PingSender<S> {
 
 impl<S> PingSender<S>
 where
-    S: crate::icmp::v4::socket::Socket + 'static,
+    S: crate::icmp::v4::Socket + 'static,
 {
     pub(crate) fn new(
         icmpv4: Arc<IcmpV4>,
@@ -47,9 +47,9 @@ where
 mod tests {
     use super::*;
     use crate::event::ping_send_event_channel;
-    use crate::icmp::v4::socket::tests::OnReceive;
-    use crate::icmp::v4::socket::tests::OnSend;
-    use crate::icmp::v4::socket::tests::SocketMock;
+    use crate::icmp::v4::tests::OnReceive;
+    use crate::icmp::v4::tests::OnSend;
+    use crate::icmp::v4::tests::SocketMock;
     use std::sync::mpsc;
 
     const CHANNEL_SIZE: usize = 8;

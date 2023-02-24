@@ -51,8 +51,9 @@ fn main() -> Result<(), GenericError> {
                     ping_duration,
                 } = ok;
                 println!(
-                    "{} bytes from {}: icmp_seq={} ttl={} time={:?}",
-                    payload_size, ip_addr, sequence_number, ttl, ping_duration
+                    "{payload_size} bytes from {ip_addr}: \
+                        icmp_seq={sequence_number} ttl={ttl} \
+                        time={ping_duration:?}",
                 );
             }
             Err(e) => {

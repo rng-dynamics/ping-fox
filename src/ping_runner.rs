@@ -62,7 +62,7 @@ pub struct PingRunnerConfig<'a> {
 impl PingRunner {
     // Create and start ping runner.
     pub fn create(config: &PingRunnerConfig<'_>) -> PingResult<Self> {
-        let timeout = icmp::v4::socket::default_timeout();
+        let timeout = icmp::v4::default_timeout();
         match config.socket_type {
             SocketType::DGRAM => {
                 let socket = Arc::new(icmp::v4::CDgramSocket::create(timeout)?);
@@ -77,7 +77,7 @@ impl PingRunner {
 
     fn create_with_socket<S>(config: &PingRunnerConfig<'_>, socket: Arc<S>) -> Self
     where
-        S: crate::icmp::v4::socket::Socket + 'static,
+        S: crate::icmp::v4::Socket + 'static,
     {
         let mut deque = VecDeque::<Ipv4Addr>::new();
         for ip in config.ips {
@@ -181,7 +181,7 @@ impl PingRunner {
         ping_send_sync_event_rx: mpsc::Receiver<PingSentSyncEvent>,
     ) -> JoinHandle<()>
     where
-        S: crate::icmp::v4::socket::Socket + 'static,
+        S: crate::icmp::v4::Socket + 'static,
     {
         std::thread::spawn(move || {
             'outer: loop {
@@ -219,7 +219,7 @@ impl PingRunner {
         interval: Duration,
     ) -> JoinHandle<()>
     where
-        S: crate::icmp::v4::socket::Socket + 'static,
+        S: crate::icmp::v4::Socket + 'static,
     {
         std::thread::spawn(move || {
             'outer: for sequence_number in 0..count {

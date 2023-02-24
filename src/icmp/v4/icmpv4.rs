@@ -36,7 +36,7 @@ impl IcmpV4 {
         sequence_number: SequenceNumber,
     ) -> Result<(usize, IpAddr, SequenceNumber, Instant), PingError>
     where
-        S: crate::icmp::v4::socket::Socket,
+        S: crate::icmp::v4::Socket,
     {
         let ip_addr = IpAddr::V4(ipv4);
         let addr = std::net::SocketAddr::new(ip_addr, 0);
@@ -56,7 +56,7 @@ impl IcmpV4 {
         socket: &S,
     ) -> std::result::Result<Option<PingReceiveData>, io::Error>
     where
-        S: crate::icmp::v4::socket::Socket,
+        S: crate::icmp::v4::Socket,
     {
         let mut buf1 = [0u8; 256];
         match socket.recv_from(&mut buf1) {
@@ -100,9 +100,9 @@ impl IcmpV4 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::icmp::v4::socket::tests::OnReceive;
-    use crate::icmp::v4::socket::tests::OnSend;
-    use crate::icmp::v4::socket::tests::SocketMock;
+    use crate::icmp::v4::tests::OnReceive;
+    use crate::icmp::v4::tests::OnSend;
+    use crate::icmp::v4::tests::SocketMock;
 
     #[test]
     fn test_send_one_ping() {

@@ -10,7 +10,7 @@ pub(crate) struct PingReceiver<S> {
 
 impl<S> PingReceiver<S>
 where
-    S: crate::icmp::v4::socket::Socket + 'static,
+    S: crate::icmp::v4::Socket + 'static,
 {
     pub(crate) fn new(socket: Arc<S>, ping_received_event_tx: PingReceiveEventSender) -> Self {
         PingReceiver {
@@ -46,9 +46,9 @@ where
 mod tests {
     use super::*;
     use crate::event::{ping_receive_event_channel, ping_send_event_channel};
-    use crate::icmp::v4::socket::tests::OnReceive;
-    use crate::icmp::v4::socket::tests::OnSend;
-    use crate::icmp::v4::socket::tests::SocketMock;
+    use crate::icmp::v4::tests::OnReceive;
+    use crate::icmp::v4::tests::OnSend;
+    use crate::icmp::v4::tests::SocketMock;
     use crate::PingSender;
     use crate::SequenceNumber;
     use std::net::Ipv4Addr;

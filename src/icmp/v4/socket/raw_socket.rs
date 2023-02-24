@@ -33,7 +33,6 @@ impl Socket for RawSocket {
         //
         // On a RAW socket we get an IP packet.
         let (_, socket_addr) = socket2::Socket::recv_from(&self.socket, unsafe {
-            // &mut *(&mut recv_buf as *mut [u8] as *mut [std::mem::MaybeUninit<u8>])
             &mut *(std::ptr::addr_of_mut!(recv_buf) as *mut [u8]
                 as *mut [std::mem::MaybeUninit<u8>])
         })?;
