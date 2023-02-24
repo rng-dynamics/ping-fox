@@ -18,3 +18,13 @@ impl std::fmt::Display for Ttl {
         write!(f, "{}", self.0)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fmt() {
+        assert_eq!("8", format!("{}", Ttl(8)));
+    }
+}
