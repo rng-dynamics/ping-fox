@@ -1,5 +1,6 @@
 use std::{error::Error, fmt};
 
+// TODO: move to own file
 pub type GenericError = Box<dyn Error + Send + Sync + 'static>;
 
 // TODO: reuse standard errors whenever the semantics line up.
@@ -44,7 +45,7 @@ mod tests {
         let ping_error = PingError {
             message: "testing std::fmt::Display".to_string(),
         };
-        let fmt_debug_str = format!("{:?}", ping_error);
+        let fmt_debug_str = format!("{ping_error:?}");
         assert_eq!(
             "PingError { message: \"testing std::fmt::Display\" }",
             fmt_debug_str
@@ -56,7 +57,7 @@ mod tests {
         let ping_error = PingError {
             message: "".to_string(),
         };
-        let fmt_str = format!("{}", ping_error);
+        let fmt_str = format!("{ping_error}");
         assert_eq!("PingError", fmt_str);
     }
 
@@ -72,7 +73,7 @@ mod tests {
     #[test]
     fn source() {
         assert!(PingError {
-            message: "".to_string()
+            message: String::new()
         }
         .source()
         .is_none());
