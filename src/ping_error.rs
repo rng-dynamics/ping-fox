@@ -55,7 +55,7 @@ mod tests {
     #[test]
     fn fmt_without_message() {
         let ping_error = PingError {
-            message: "".to_string(),
+            message: String::new(),
         };
         let fmt_str = format!("{ping_error}");
         assert_eq!("PingError", fmt_str);
@@ -66,7 +66,7 @@ mod tests {
         let ping_error = PingError {
             message: "testing std::fmt::Display".to_string(),
         };
-        let fmt_str = format!("{}", ping_error);
+        let fmt_str = format!("{ping_error}");
         assert_eq!("PingError: testing std::fmt::Display", fmt_str);
     }
 
