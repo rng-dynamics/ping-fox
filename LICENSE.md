@@ -1,4 +1,4 @@
-Copyright 2022 Alexander Scharinger
+Copyright 2022, 2023 Alexander Scharinger
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
 
