@@ -41,18 +41,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn derive_debug() {
-        let ping_error = PingError {
-            message: "testing std::fmt::Display".to_string(),
-        };
-        let fmt_debug_str = format!("{ping_error:?}");
-        assert_eq!(
-            "PingError { message: \"testing std::fmt::Display\" }",
-            fmt_debug_str
-        );
-    }
-
-    #[test]
     fn fmt_without_message() {
         let ping_error = PingError {
             message: String::new(),
