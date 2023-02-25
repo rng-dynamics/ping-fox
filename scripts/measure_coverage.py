@@ -80,6 +80,8 @@ def generate_report():
             "--ignore-not-existing",
             "--ignore",
             "/*",
+            "--ignore",
+            "target/debug/build/*",
             "-o",
             "./target/debug/lcov.info",
         ],
@@ -97,7 +99,7 @@ def generate_report():
             "--ignore-errors",
             "source",
             "--legend",
-            "./target/debug/lcov.info"
+            "./target/debug/lcov.info",
         ],
         check=True,
         stdout=sys.stdout,

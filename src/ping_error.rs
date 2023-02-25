@@ -1,5 +1,6 @@
 use std::{error::Error, fmt};
 
+// TODO: move to own file
 pub type GenericError = Box<dyn Error + Send + Sync + 'static>;
 
 // TODO: reuse standard errors whenever the semantics line up.
@@ -25,7 +26,6 @@ impl Error for PingError {
     }
 }
 
-// TODO: do we need these From<> implementations?
 impl From<std::io::Error> for PingError {
     fn from(error: std::io::Error) -> PingError {
         PingError {
@@ -41,7 +41,34 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_ping_error_from_std_io_error() {
+    fn fmt_without_message() {
+        let ping_error = PingError {
+            message: String::new(),
+        };
+        let fmt_str = format!("{ping_error}");
+        assert_eq!("PingError", fmt_str);
+    }
+
+    #[test]
+    fn fmt_with_message() {
+        let ping_error = PingError {
+            message: "testing std::fmt::Display".to_string(),
+        };
+        let fmt_str = format!("{ping_error}");
+        assert_eq!("PingError: testing std::fmt::Display", fmt_str);
+    }
+
+    #[test]
+    fn source() {
+        assert!(PingError {
+            message: String::new()
+        }
+        .source()
+        .is_none());
+    }
+
+    #[test]
+    fn ping_error_from_std_io_error() {
         let std_io_error = std::io::Error::from(ErrorKind::Other);
         let ping_error: PingError = PingError::from(std_io_error);
         assert!(ping_error.source().is_none());

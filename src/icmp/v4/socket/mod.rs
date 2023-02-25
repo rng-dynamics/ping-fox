@@ -1,81 +1,16 @@
-use std::io;
-use std::time::Duration;
+use crate::Ttl;
+use std::{io, time::Duration};
 
-use pnet_packet::{ipv4::Ipv4Packet, Packet};
-
-use socket2::{Domain, Protocol, Type};
+pub(crate) mod dgram_socket;
+pub(crate) mod raw_socket;
 
 pub(crate) trait Socket: Send + Sync {
     fn send_to(&self, buf: &[u8], addr: &socket2::SockAddr) -> io::Result<usize>;
-
-    fn recv_from(
-        &self,
-        buf: &mut [std::mem::MaybeUninit<u8>],
-    ) -> io::Result<(usize, socket2::SockAddr)>;
+    fn recv_from(&self, buf: &mut [u8]) -> io::Result<(usize, std::net::IpAddr, Ttl)>;
 }
 
-struct DgramSocket {
-    socket: socket2::Socket,
-}
-
-struct RawSocket {
-    socket: socket2::Socket,
-}
-
-impl Socket for DgramSocket {
-    fn send_to(&self, buf: &[u8], addr: &socket2::SockAddr) -> io::Result<usize> {
-        self.socket.send_to(buf, addr)
-    }
-
-    fn recv_from(
-        &self,
-        buf: &mut [std::mem::MaybeUninit<u8>],
-    ) -> io::Result<(usize, socket2::SockAddr)> {
-        socket2::Socket::recv_from(&self.socket, buf)
-    }
-}
-
-impl Socket for RawSocket {
-    fn send_to(&self, buf: &[u8], addr: &socket2::SockAddr) -> io::Result<usize> {
-        self.socket.send_to(buf, addr)
-    }
-
-    fn recv_from(
-        &self,
-        buf: &mut [std::mem::MaybeUninit<u8>],
-    ) -> io::Result<(usize, socket2::SockAddr)> {
-        // On a RAW socket we get an IP packet.
-        let (n, addr) = socket2::Socket::recv_from(&self.socket, buf)?;
-        // Unwrape the IP packet
-        let buf2: Vec<u8> = buf
-            .iter()
-            .take(n)
-            .map(|&b| unsafe { b.assume_init() })
-            .collect();
-        let ipv4_packet = Ipv4Packet::new(&buf2).expect("could not initialize IPv4 package");
-        let ip_payload = ipv4_packet.payload();
-        // Return only the ICMP content
-        for (idx, bval) in ip_payload.iter().enumerate() {
-            buf[idx] = std::mem::MaybeUninit::new(*bval);
-        }
-        Ok((ip_payload.len(), addr))
-    }
-}
-
-pub(crate) fn create_socket2_dgram_socket(timeout: Duration) -> Result<impl Socket, io::Error> {
-    let socket = socket2::Socket::new(Domain::IPV4, Type::DGRAM, Some(Protocol::ICMPV4))?;
-    socket
-        .set_read_timeout(Some(timeout))
-        .expect("could not set socket timeout");
-    Ok(DgramSocket { socket })
-}
-
-pub(crate) fn create_socket2_raw_socket(timeout: Duration) -> Result<impl Socket, io::Error> {
-    let socket = socket2::Socket::new(Domain::IPV4, Type::RAW, Some(Protocol::ICMPV4))?;
-    socket
-        .set_read_timeout(Some(timeout))
-        .expect("could not set socket timeout");
-    Ok(RawSocket { socket })
+pub(crate) fn default_timeout() -> Duration {
+    Duration::from_secs(2)
 }
 
 #[cfg(test)]
@@ -83,7 +18,6 @@ pub(crate) mod tests {
     use super::*;
 
     use std::net::IpAddr;
-    use std::net::SocketAddr;
     use std::sync::Mutex;
 
     use pnet_packet::icmp::checksum;
@@ -140,7 +74,7 @@ pub(crate) mod tests {
         }
     }
 
-    impl crate::Socket for SocketMock {
+    impl Socket for SocketMock {
         fn send_to(&self, buf: &[u8], addr: &socket2::SockAddr) -> io::Result<usize> {
             if self.on_send == OnSend::ReturnErr {
                 return Err(io::Error::new(
@@ -162,10 +96,7 @@ pub(crate) mod tests {
             Ok(buf.len())
         }
 
-        fn recv_from(
-            &self,
-            buf: &mut [std::mem::MaybeUninit<u8>],
-        ) -> io::Result<(usize, socket2::SockAddr)> {
+        fn recv_from(&self, buf: &mut [u8]) -> io::Result<(usize, IpAddr, Ttl)> {
             let on_receive: OnReceive = *self.on_receive.lock().unwrap();
             match on_receive {
                 OnReceive::ReturnWouldBlock => {
@@ -202,12 +133,13 @@ pub(crate) mod tests {
             package.set_checksum(0_u16);
             package.set_checksum(checksum(&IcmpPacket::new(package.packet()).unwrap()));
             for (i, b) in package.packet().iter().enumerate() {
-                buf[i].write(*b);
+                buf[i] = *b;
             }
 
             Ok((
                 package.packet_size(),
-                "127.0.0.1:12345".parse::<SocketAddr>().unwrap().into(),
+                "127.0.0.1".parse::<IpAddr>().unwrap(),
+                Ttl(128),
             ))
         }
     }

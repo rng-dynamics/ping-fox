@@ -1,22 +1,21 @@
-use std::collections::VecDeque;
-use std::net::Ipv4Addr;
-use std::sync::mpsc;
-use std::sync::Arc;
-use std::thread::JoinHandle;
-use std::time::Duration;
-
 use crate::event::{
     ping_receive_event_channel, ping_send_event_channel, ping_send_sync_event_channel,
     PingSentSyncEvent,
 };
 use crate::ping_output::{ping_output_channel, PingOutput, PingOutputReceiver};
-use crate::socket;
 use crate::GenericError;
 use crate::IcmpV4;
 use crate::PingDataBuffer;
 use crate::PingError;
 use crate::PingReceiver;
 use crate::PingSender;
+use crate::{icmp, SequenceNumber};
+use std::collections::VecDeque;
+use std::net::Ipv4Addr;
+use std::sync::mpsc;
+use std::sync::Arc;
+use std::thread::JoinHandle;
+use std::time::Duration;
 
 pub type PingResult<T> = std::result::Result<T, GenericError>;
 
@@ -63,14 +62,14 @@ pub struct PingRunnerConfig<'a> {
 impl PingRunner {
     // Create and start ping runner.
     pub fn create(config: &PingRunnerConfig<'_>) -> PingResult<Self> {
-        let socket_timeout = Duration::from_millis(2000); // TODO
+        let timeout = icmp::v4::default_timeout();
         match config.socket_type {
             SocketType::DGRAM => {
-                let socket = Arc::new(socket::create_socket2_dgram_socket(socket_timeout)?);
+                let socket = Arc::new(icmp::v4::CDgramSocket::create(timeout)?);
                 Ok(Self::create_with_socket(config, socket))
             }
             SocketType::RAW => {
-                let socket = Arc::new(socket::create_socket2_raw_socket(socket_timeout)?);
+                let socket = Arc::new(icmp::v4::RawSocket::create(timeout)?);
                 Ok(Self::create_with_socket(config, socket))
             }
         }
@@ -78,7 +77,7 @@ impl PingRunner {
 
     fn create_with_socket<S>(config: &PingRunnerConfig<'_>, socket: Arc<S>) -> Self
     where
-        S: crate::Socket + 'static,
+        S: crate::icmp::v4::Socket + 'static,
     {
         let mut deque = VecDeque::<Ipv4Addr>::new();
         for ip in config.ips {
@@ -153,11 +152,11 @@ impl PingRunner {
         }
 
         let join_result_1 = match self.sender_thread.take() {
-            Some(handle) => handle.join(),
+            Some(thread) => thread.join(),
             None => Ok(()),
         };
         let join_result_2 = match self.receiver_thread.take() {
-            Some(handle) => handle.join(),
+            Some(thread) => thread.join(),
             None => Ok(()),
         };
 
@@ -182,7 +181,7 @@ impl PingRunner {
         ping_send_sync_event_rx: mpsc::Receiver<PingSentSyncEvent>,
     ) -> JoinHandle<()>
     where
-        S: crate::Socket + 'static,
+        S: crate::icmp::v4::Socket + 'static,
     {
         std::thread::spawn(move || {
             'outer: loop {
@@ -220,21 +219,26 @@ impl PingRunner {
         interval: Duration,
     ) -> JoinHandle<()>
     where
-        S: crate::Socket + 'static,
+        S: crate::icmp::v4::Socket + 'static,
     {
         std::thread::spawn(move || {
             'outer: for sequence_number in 0..count {
                 for ip in &ips {
-                    if ping_sender.send_one(*ip, sequence_number).is_err() {
-                        tracing::error!("PingSender::send_one() failed");
+                    // (1) Send ping
+                    let send_one_result =
+                        ping_sender.send_one(*ip, SequenceNumber(sequence_number));
+                    if let Err(e) = send_one_result {
+                        tracing::error!("PingSender::send_one() failed: {}", e);
                         break 'outer;
                     }
-                    // (2.2) Dispatch sync event.
-                    if ping_send_sync_event_tx.send(PingSentSyncEvent).is_err() {
-                        tracing::error!("mpsc::SyncSender::send() failed");
+                    // (2) Dispatch sync event.
+                    let ping_send_sync_send_result =
+                        ping_send_sync_event_tx.send(PingSentSyncEvent);
+                    if let Err(e) = ping_send_sync_send_result {
+                        tracing::error!("mpsc::SyncSender::send() failed: {}", e);
                         break 'outer;
                     }
-                    tracing::trace!("PingSender published SYNC-Event");
+                    tracing::trace!("SYNC-Event dispatched by PingSender");
 
                     // (3) Check termination.
                     match halt_rx.try_recv() {
@@ -244,7 +248,7 @@ impl PingRunner {
                 }
                 if sequence_number < count - 1 {
                     // (4) Sleep according to configuration
-                    tracing::trace!("PingSender will sleep");
+                    tracing::trace!("PingSender starts sleeping");
                     std::thread::sleep(interval);
                 }
             }
