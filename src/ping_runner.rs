@@ -152,11 +152,11 @@ impl PingRunner {
         }
 
         let join_result_1 = match self.sender_thread.take() {
-            Some(handle) => handle.join(),
+            Some(thread) => thread.join(),
             None => Ok(()),
         };
         let join_result_2 = match self.receiver_thread.take() {
-            Some(handle) => handle.join(),
+            Some(thread) => thread.join(),
             None => Ok(()),
         };
 
@@ -224,19 +224,21 @@ impl PingRunner {
         std::thread::spawn(move || {
             'outer: for sequence_number in 0..count {
                 for ip in &ips {
-                    if ping_sender
-                        .send_one(*ip, SequenceNumber(sequence_number))
-                        .is_err()
-                    {
-                        tracing::error!("PingSender::send_one() failed");
+                    // (1) Send ping
+                    let send_one_result =
+                        ping_sender.send_one(*ip, SequenceNumber(sequence_number));
+                    if let Err(e) = send_one_result {
+                        tracing::error!("PingSender::send_one() failed: {}", e);
                         break 'outer;
                     }
-                    // (2.2) Dispatch sync event.
-                    if ping_send_sync_event_tx.send(PingSentSyncEvent).is_err() {
-                        tracing::error!("mpsc::SyncSender::send() failed");
+                    // (2) Dispatch sync event.
+                    let ping_send_sync_send_result =
+                        ping_send_sync_event_tx.send(PingSentSyncEvent);
+                    if let Err(e) = ping_send_sync_send_result {
+                        tracing::error!("mpsc::SyncSender::send() failed: {}", e);
                         break 'outer;
                     }
-                    tracing::trace!("PingSender published SYNC-Event");
+                    tracing::trace!("SYNC-Event dispatched by PingSender");
 
                     // (3) Check termination.
                     match halt_rx.try_recv() {
@@ -246,7 +248,7 @@ impl PingRunner {
                 }
                 if sequence_number < count - 1 {
                     // (4) Sleep according to configuration
-                    tracing::trace!("PingSender will sleep");
+                    tracing::trace!("PingSender starts sleeping");
                     std::thread::sleep(interval);
                 }
             }

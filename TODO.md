@@ -1,5 +1,6 @@
 ## TODO
 
+- Rethink the explicit state in PingRunner.
 - The count in PingRunner does not seem to work. (Try the cli example.)
 - Go over all TODOs in code and resolve or delete.
 - Can we have coverage of the extern c code?
