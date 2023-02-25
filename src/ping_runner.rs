@@ -271,7 +271,6 @@ mod tests {
 
         let ping_runner = PingRunner::create(&ping_config).unwrap();
         let ping_output = ping_runner.next_ping_output();
-        println!("{ping_output:?}");
         assert!(ping_output.is_ok());
     }
 
