@@ -2,8 +2,14 @@ use std::net::IpAddr;
 use std::sync::mpsc;
 use std::time::Duration;
 
+pub enum PingOutput {
+    Data(PingOutputData),
+    End,
+}
+
 #[derive(Debug)]
-pub struct PingOutput {
+#[allow(clippy::module_name_repetitions)]
+pub struct PingOutputData {
     pub package_size: usize,
     pub ip_addr: IpAddr,
     pub ttl: u8,

@@ -1,6 +1,6 @@
+use crate::icmp::v4::SequenceNumber;
 use crate::PingError;
 use crate::PingReceiveData;
-use crate::SequenceNumber;
 use pnet_packet::icmp::{
     echo_reply::EchoReplyPacket,
     echo_request::{
@@ -58,7 +58,7 @@ impl IcmpV4 {
     where
         S: crate::icmp::v4::Socket,
     {
-        let mut buf1 = [0u8; 256];
+        let mut buf1 = [0u8; 128];
         match socket.recv_from(&mut buf1) {
             Err(e) if e.kind() == io::ErrorKind::WouldBlock => Ok(None),
             Err(e) => Err(e),

@@ -1,4 +1,5 @@
-use crate::{SequenceNumber, Ttl};
+use crate::icmp::v4::SequenceNumber;
+use crate::Ttl;
 use std::net::IpAddr;
 use std::time::Instant;
 

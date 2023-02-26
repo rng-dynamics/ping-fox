@@ -11,7 +11,6 @@ use ping_error::{GenericError, PingError};
 use ping_receive_data::PingReceiveData;
 use ping_receiver::PingReceiver;
 use ping_sender::PingSender;
-use sequence_number::SequenceNumber;
 use ttl::Ttl;
 
 mod event;
@@ -23,5 +22,4 @@ mod ping_receive_data;
 mod ping_receiver;
 mod ping_runner;
 mod ping_sender;
-mod sequence_number;
 mod ttl;

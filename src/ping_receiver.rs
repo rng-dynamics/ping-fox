@@ -49,8 +49,8 @@ mod tests {
     use crate::icmp::v4::tests::OnReceive;
     use crate::icmp::v4::tests::OnSend;
     use crate::icmp::v4::tests::SocketMock;
+    use crate::icmp::v4::SequenceNumber;
     use crate::PingSender;
-    use crate::SequenceNumber;
     use std::net::Ipv4Addr;
 
     const CHANNEL_SIZE: usize = 8;

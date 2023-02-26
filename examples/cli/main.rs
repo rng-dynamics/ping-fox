@@ -1,7 +1,6 @@
+use ping_fox::{PingOutput, PingOutputData, PingRunner, PingRunnerConfig, SocketType};
 use std::net::Ipv4Addr;
 use std::time::Duration;
-
-use ping_fox::{PingOutput, PingRunner, PingRunnerConfig, SocketType};
 
 type GenericError = Box<dyn std::error::Error + Send + Sync + 'static>;
 
@@ -26,15 +25,34 @@ impl std::error::Error for Error {
     }
 }
 
+#[derive(argh::FromArgs)]
+/// ping - send ICMP ECHO_REQUEST to network hosts
+struct Args {
+    #[argh(option, short = 'c', default = "std::u16::MAX")]
+    /// stop after <count> sent ping messages
+    count: u16,
+
+    #[argh(positional)]
+    /// IP addresses
+    addresses: Vec<String>,
+}
+
 fn main() -> Result<(), GenericError> {
+    let subscriber = tracing_subscriber::FmtSubscriber::builder()
+        .with_max_level(tracing::Level::ERROR)
+        .finish();
+    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+
+    let args: Args = argh::from_env();
+
     let mut addresses = Vec::<Ipv4Addr>::new();
-    for arg in std::env::args().skip(1) {
-        addresses.push(arg.parse::<Ipv4Addr>()?);
+    for address in args.addresses {
+        addresses.push(address.parse::<Ipv4Addr>()?);
     }
 
     let ping_config = PingRunnerConfig {
         ips: &addresses,
-        count: 1,
+        count: args.count,
         interval: Duration::from_secs(1),
         channel_size: 8,
         socket_type: SocketType::DGRAM,
@@ -42,10 +60,11 @@ fn main() -> Result<(), GenericError> {
 
     let ping_runner = PingRunner::create(&ping_config)?;
 
-    for _ in 0..addresses.len() {
+    // for _ in 0..addresses.len() {
+    loop {
         match ping_runner.next_ping_output() {
-            Ok(ok) => {
-                let PingOutput {
+            Ok(PingOutput::Data(ok)) => {
+                let PingOutputData {
                     package_size: payload_size,
                     ip_addr,
                     ttl,
@@ -57,6 +76,9 @@ fn main() -> Result<(), GenericError> {
                         icmp_seq={sequence_number} ttl={ttl} \
                         time={ping_duration:?}",
                 );
+            }
+            Ok(PingOutput::End) => {
+                break;
             }
             Err(e) => {
                 println!("ERROR Err(e): {:?}", e);
