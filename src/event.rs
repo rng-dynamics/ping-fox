@@ -1,4 +1,5 @@
-use crate::{PingReceiveData, SequenceNumber};
+use crate::icmp::v4::SequenceNumber;
+use crate::PingReceiveData;
 use std::time::Instant;
 use std::{net::IpAddr, sync::mpsc};
 

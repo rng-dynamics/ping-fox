@@ -82,7 +82,7 @@ unsafe fn str_from_null_terminated_utf8(s: &[u8]) -> &str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::SequenceNumber;
+    use crate::icmp::v4::SequenceNumber;
     use std::net::SocketAddr;
 
     const BUFFER_LEN: usize = 256;

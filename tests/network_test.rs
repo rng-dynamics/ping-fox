@@ -5,7 +5,7 @@ use more_asserts as ma;
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
 
-use ping_fox::{PingRunner, PingRunnerConfig, SocketType};
+use ping_fox::{PingOutput, PingRunner, PingRunnerConfig, SocketType};
 
 #[test]
 fn test_ping_multiple_net() {
@@ -21,7 +21,7 @@ fn test_ping_multiple_net() {
 
     let ping_config = PingRunnerConfig {
         ips: &[ip_example_com, ip_iana_com],
-        count: 1,
+        count: 2,
         interval: Duration::from_secs(1),
         channel_size: 4,
         socket_type: SocketType::DGRAM,
@@ -29,19 +29,37 @@ fn test_ping_multiple_net() {
 
     let ping_runner = PingRunner::create(&ping_config).unwrap();
 
-    // we expect two values
-    let frst = ping_runner.next_ping_output().unwrap();
-    let scnd = ping_runner.next_ping_output().unwrap();
+    // check first ping output
+    match ping_runner.next_ping_output().unwrap() {
+        PingOutput::Data(frst) => {
+            let ip_1_match_1 = frst.ip_addr == ip_example_com;
+            let ip_1_match_2 = frst.ip_addr == ip_iana_com;
+            assert!(ip_1_match_1 || ip_1_match_2);
+            ma::assert_gt!(frst.ping_duration, Duration::from_secs(0));
+        }
+        _ => {
+            panic!("unexpected output");
+        }
+    };
 
-    drop(ping_runner);
+    // check second ping output
+    match ping_runner.next_ping_output().unwrap() {
+        PingOutput::Data(scnd) => {
+            let ip_2_match_1 = scnd.ip_addr == ip_example_com;
+            let ip_2_match_2 = scnd.ip_addr == ip_iana_com;
+            assert!(ip_2_match_1 || ip_2_match_2);
+            ma::assert_gt!(scnd.ping_duration, Duration::from_secs(0));
+        }
+        _ => {
+            panic!("unexpected output");
+        }
+    };
 
-    let ip_1_match_1 = frst.ip_addr == ip_example_com;
-    let ip_1_match_2 = frst.ip_addr == ip_iana_com;
-    assert!(ip_1_match_1 || ip_1_match_2);
-    ma::assert_gt!(frst.ping_duration, Duration::from_secs(0));
-
-    let ip_2_match_1 = scnd.ip_addr == ip_example_com;
-    let ip_2_match_2 = scnd.ip_addr == ip_iana_com;
-    assert!(ip_2_match_1 || ip_2_match_2);
-    ma::assert_gt!(scnd.ping_duration, Duration::from_secs(0));
+    // check that there are no further ping outputs
+    match ping_runner.next_ping_output().unwrap() {
+        PingOutput::End => {}
+        _ => {
+            panic!("unexpected output");
+        }
+    }
 }

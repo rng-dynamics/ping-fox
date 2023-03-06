@@ -1,7 +1,9 @@
 mod icmpv4;
+mod sequence_number;
 mod socket;
 
 pub(crate) use icmpv4::IcmpV4;
+pub(crate) use sequence_number::SequenceNumber;
 pub(crate) use socket::default_timeout;
 pub(crate) use socket::dgram_socket::CDgramSocket;
 pub(crate) use socket::raw_socket::RawSocket;

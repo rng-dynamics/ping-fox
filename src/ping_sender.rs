@@ -1,6 +1,7 @@
 use crate::event::{PingSendEvent, PingSendEventSender};
+use crate::icmp::v4::SequenceNumber;
+use crate::IcmpV4;
 use crate::PingResult;
-use crate::{IcmpV4, SequenceNumber};
 use std::net::Ipv4Addr;
 use std::sync::Arc;
 

@@ -1,13 +1,20 @@
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub struct Ttl(pub u8);
+// TODO: should we do that also with a trait and an associated type?
+// Not sure. This actually seems simple enough.
+// Nevertheless, try what is shorter and nicer.
+// KISS
 
-impl From<u8> for Ttl {
-    fn from(integer: u8) -> Self {
+type TtlInnerType = u8;
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub struct Ttl(pub TtlInnerType);
+
+impl From<TtlInnerType> for Ttl {
+    fn from(integer: TtlInnerType) -> Self {
         Ttl(integer)
     }
 }
 
-impl From<Ttl> for u8 {
+impl From<Ttl> for TtlInnerType {
     fn from(ttl: Ttl) -> Self {
         ttl.0
     }

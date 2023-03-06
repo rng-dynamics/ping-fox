@@ -2,14 +2,15 @@ use crate::event::{
     ping_receive_event_channel, ping_send_event_channel, ping_send_sync_event_channel,
     PingSentSyncEvent,
 };
-use crate::ping_output::{ping_output_channel, PingOutput, PingOutputReceiver};
+use crate::icmp;
+use crate::icmp::v4::SequenceNumber;
+use crate::ping_output::{ping_output_channel, PingOutput, PingOutputReceiver, PingOutputSender};
 use crate::GenericError;
 use crate::IcmpV4;
 use crate::PingDataBuffer;
 use crate::PingError;
 use crate::PingReceiver;
 use crate::PingSender;
-use crate::{icmp, SequenceNumber};
 use std::collections::VecDeque;
 use std::net::Ipv4Addr;
 use std::sync::mpsc;
@@ -93,7 +94,8 @@ impl PingRunner {
         let (sender_halt_tx, sender_halt_rx) = mpsc::channel::<()>();
         let (receiver_halt_tx, receiver_halt_rx) = mpsc::channel::<()>();
 
-        let ping_data_buffer = PingDataBuffer::new(send_event_rx, receive_event_rx, ping_output_tx);
+        let ping_data_buffer =
+            PingDataBuffer::new(send_event_rx, receive_event_rx, ping_output_tx.clone());
 
         let icmpv4 = std::sync::Arc::new(IcmpV4::create());
 
@@ -103,7 +105,6 @@ impl PingRunner {
         let sender_thread = Self::start_sender_thread(
             ping_sender,
             sender_halt_rx,
-            config.count,
             deque,
             send_sync_event_tx,
             config.interval,
@@ -114,6 +115,8 @@ impl PingRunner {
             ping_receiver,
             receiver_halt_rx,
             send_sync_event_rx,
+            ping_output_tx,
+            config.count.into(),
         );
 
         Self {
@@ -179,11 +182,14 @@ impl PingRunner {
         ping_receiver: PingReceiver<S>,
         halt_rx: mpsc::Receiver<()>,
         ping_send_sync_event_rx: mpsc::Receiver<PingSentSyncEvent>,
+        ping_output_tx: PingOutputSender,
+        n_replies_target_value: usize,
     ) -> JoinHandle<()>
     where
         S: crate::icmp::v4::Socket + 'static,
     {
         std::thread::spawn(move || {
+            let mut n_replies_received: usize = 0;
             'outer: loop {
                 // (1) Wait for sync-event from PingSender.
                 let ping_send_sync_event_recv = ping_send_sync_event_rx.recv();
@@ -199,21 +205,32 @@ impl PingRunner {
                     tracing::error!("PingReceiver::receive() failed: {}", e);
                     break 'outer;
                 }
-                ping_data_buffer.update();
+                let _ = ping_data_buffer.process_send_events();
+                let n_recvs = ping_data_buffer.process_receive_events();
+                n_replies_received += n_recvs;
 
-                // (4) check termination
+                // (3) check whether we are done
+                if n_replies_received >= n_replies_target_value {
+                    let send_result = ping_output_tx.send(PingOutput::End);
+                    if let Err(e) = send_result {
+                        tracing::error!("failed to send on PingOutput channel: {}", e);
+                    }
+                    break 'outer;
+                }
+
+                // (4) check termination request
                 match halt_rx.try_recv() {
                     Ok(_) | Err(std::sync::mpsc::TryRecvError::Disconnected) => break 'outer,
                     Err(std::sync::mpsc::TryRecvError::Empty) => {}
                 }
             }
+            tracing::trace!("Ping receiver thread end");
         })
     }
 
     fn start_sender_thread<S>(
         ping_sender: PingSender<S>,
         halt_rx: mpsc::Receiver<()>,
-        count: u16,
         ips: VecDeque<Ipv4Addr>,
         ping_send_sync_event_tx: mpsc::SyncSender<PingSentSyncEvent>,
         interval: Duration,
@@ -222,16 +239,24 @@ impl PingRunner {
         S: crate::icmp::v4::Socket + 'static,
     {
         std::thread::spawn(move || {
-            'outer: for sequence_number in 0..count {
+            'outer: for sequence_number in
+                SequenceNumber::start_value()..SequenceNumber::max_value()
+            {
                 for ip in &ips {
-                    // (1) Send ping
+                    // (1) Check termination.
+                    match halt_rx.try_recv() {
+                        Ok(_) | Err(std::sync::mpsc::TryRecvError::Disconnected) => break 'outer,
+                        Err(std::sync::mpsc::TryRecvError::Empty) => {}
+                    }
+
+                    // (2) Send ping
                     let send_one_result =
                         ping_sender.send_one(*ip, SequenceNumber(sequence_number));
                     if let Err(e) = send_one_result {
-                        tracing::error!("PingSender::send_one() failed: {}", e);
+                        tracing::error!("Ping sender::send_one() failed: {}", e);
                         break 'outer;
                     }
-                    // (2) Dispatch sync event.
+                    // (3) Dispatch sync event.
                     let ping_send_sync_send_result =
                         ping_send_sync_event_tx.send(PingSentSyncEvent);
                     if let Err(e) = ping_send_sync_send_result {
@@ -239,20 +264,13 @@ impl PingRunner {
                         break 'outer;
                     }
                     tracing::trace!("SYNC-Event dispatched by PingSender");
+                }
 
-                    // (3) Check termination.
-                    match halt_rx.try_recv() {
-                        Ok(_) | Err(std::sync::mpsc::TryRecvError::Disconnected) => break 'outer,
-                        Err(std::sync::mpsc::TryRecvError::Empty) => {}
-                    }
-                }
-                if sequence_number < count - 1 {
-                    // (4) Sleep according to configuration
-                    tracing::trace!("PingSender starts sleeping");
-                    std::thread::sleep(interval);
-                }
+                // (4) Sleep according to configuration
+                tracing::trace!("Ping sender starts sleeping");
+                std::thread::sleep(interval);
             }
-            tracing::trace!("PingSender thread end");
+            tracing::trace!("Ping sender thread end");
         })
     }
 }
