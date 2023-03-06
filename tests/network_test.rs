@@ -38,7 +38,7 @@ fn test_ping_multiple_net() {
             ma::assert_gt!(frst.ping_duration, Duration::from_secs(0));
         }
         _ => {
-            panic!();
+            panic!("unexpected output");
         }
     };
 
@@ -51,7 +51,7 @@ fn test_ping_multiple_net() {
             ma::assert_gt!(scnd.ping_duration, Duration::from_secs(0));
         }
         _ => {
-            panic!();
+            panic!("unexpected output");
         }
     };
 
@@ -59,7 +59,7 @@ fn test_ping_multiple_net() {
     match ping_runner.next_ping_output().unwrap() {
         PingOutput::End => {}
         _ => {
-            panic!();
+            panic!("unexpected output");
         }
     }
 }
