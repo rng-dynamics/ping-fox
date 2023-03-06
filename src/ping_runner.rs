@@ -189,7 +189,6 @@ impl PingRunner {
         S: crate::icmp::v4::Socket + 'static,
     {
         std::thread::spawn(move || {
-            let mut n_replies_received: usize = 0;
             'outer: loop {
                 // (1) Wait for sync-event from PingSender.
                 let ping_send_sync_event_recv = ping_send_sync_event_rx.recv();
@@ -205,10 +204,10 @@ impl PingRunner {
                     tracing::error!("PingReceiver::receive() failed: {}", e);
                     break 'outer;
                 }
-                n_replies_received += ping_data_buffer.update();
+                ping_data_buffer.update();
 
                 // (3) check whether we are done
-                if n_replies_received >= n_replies_target_value {
+                if ping_data_buffer.get_num_of_receive_events() >= n_replies_target_value {
                     let send_result = ping_output_tx.send(PingOutput::End);
                     if let Err(e) = send_result {
                         tracing::error!("failed to send on PingOutput channel: {}", e);

@@ -14,6 +14,8 @@ pub(crate) struct PingDataBuffer {
 
     ping_output_tx: PingOutputSender,
     send_events: HashMap<(SequenceNumber, IpAddr), (usize, Instant)>,
+
+    n_receive_events: usize,
 }
 
 impl PingDataBuffer {
@@ -27,13 +29,18 @@ impl PingDataBuffer {
             ping_receive_event_rx,
             ping_output_tx,
             send_events: HashMap::new(),
+            n_receive_events: 0,
         }
     }
 
     /// Return The number of successfully processed receive events
-    pub(crate) fn update(&mut self) -> usize {
+    pub(crate) fn update(&mut self) {
         self.process_send_events();
-        self.process_receive_events()
+        self.process_receive_events();
+    }
+
+    pub(crate) fn get_num_of_receive_events(&self) -> usize {
+        self.n_receive_events
     }
 
     fn process_send_events(&mut self) {
@@ -49,9 +56,7 @@ impl PingDataBuffer {
         }
     }
 
-    /// Return The number of successfully processed receive events
-    fn process_receive_events(&mut self) -> usize {
-        let mut n_receive_events: usize = 0;
+    fn process_receive_events(&mut self) {
         while let Ok(ping_receive_event) = self.ping_receive_event_rx.try_recv() {
             match ping_receive_event {
                 PingReceiveEvent::Data(receive_data) => {
@@ -79,7 +84,7 @@ impl PingDataBuffer {
                             if let Err(e) = send_result {
                                 tracing::error!("failed to send on PingOutput channel: {}", e);
                             } else {
-                                n_receive_events += 1;
+                                self.n_receive_events += 1;
                             }
                             self.send_events.remove(&(sequence_number, ip_addr));
                         }
@@ -91,6 +96,5 @@ impl PingDataBuffer {
                 }
             }
         }
-        n_receive_events
     }
 }
