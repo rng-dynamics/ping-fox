@@ -30,14 +30,10 @@ impl PingDataBuffer {
         }
     }
 
-    /// Return The number of successfully processed receive events
-    pub(crate) fn update(&mut self) -> usize {
-        self.process_send_events();
-        self.process_receive_events()
-    }
-
-    fn process_send_events(&mut self) {
+    pub(crate) fn process_send_events(&mut self) -> usize {
+        let mut n_send_events: usize = 0;
         while let Ok(send_event) = self.ping_send_event_rx.try_recv() {
+            // TODO: handle when error is returned from try_recv.
             let PingSendEvent {
                 payload_size,
                 ip_addr,
@@ -46,11 +42,13 @@ impl PingDataBuffer {
             } = send_event;
             self.send_events
                 .insert((sequence_number, ip_addr), (payload_size, send_time));
+            n_send_events += 1;
         }
+        n_send_events
     }
 
     /// Return The number of successfully processed receive events
-    fn process_receive_events(&mut self) -> usize {
+    pub(crate) fn process_receive_events(&mut self) -> usize {
         let mut n_receive_events: usize = 0;
         while let Ok(ping_receive_event) = self.ping_receive_event_rx.try_recv() {
             match ping_receive_event {

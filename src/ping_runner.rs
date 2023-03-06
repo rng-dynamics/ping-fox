@@ -205,7 +205,9 @@ impl PingRunner {
                     tracing::error!("PingReceiver::receive() failed: {}", e);
                     break 'outer;
                 }
-                n_replies_received += ping_data_buffer.update();
+                let _ = ping_data_buffer.process_send_events();
+                let n_recvs = ping_data_buffer.process_receive_events();
+                n_replies_received += n_recvs;
 
                 // (3) check whether we are done
                 if n_replies_received >= n_replies_target_value {
