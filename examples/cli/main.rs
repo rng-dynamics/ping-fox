@@ -26,7 +26,7 @@ impl std::error::Error for Error {
 }
 
 #[derive(argh::FromArgs)]
-/// ping - send ICMP ECHO_REQUEST to network hosts
+/// ping - send ICMP ECHO_REQUEST to IP addresses
 struct Args {
     #[argh(option, short = 'c', default = "std::u16::MAX")]
     /// stop after <count> sent ping messages
@@ -60,7 +60,6 @@ fn main() -> Result<(), GenericError> {
 
     let ping_runner = PingRunner::create(&ping_config)?;
 
-    // for _ in 0..addresses.len() {
     loop {
         match ping_runner.next_ping_output() {
             Ok(PingOutput::Data(ok)) => {
