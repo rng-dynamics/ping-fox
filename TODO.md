@@ -1,5 +1,6 @@
 ## TODO
 
+- Evaluate: Can we refactor ping-fox to not use any threads internaly, but offer an interface to advance through the steps.
 - Rethink the explicit state in PingRunner.
 - Go over all TODOs in code and resolve or delete.
 - Can we have coverage of the extern c code?
