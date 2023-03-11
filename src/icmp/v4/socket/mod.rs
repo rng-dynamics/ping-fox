@@ -4,8 +4,8 @@ use std::{io, time::Duration};
 pub(crate) mod dgram_socket;
 pub(crate) mod raw_socket;
 
-// TODO: make pub(crate)
 pub trait Socket: Send + Sync {
+    // TODO: can we get rid of the Box inside the Result?
     fn new(timeout: Duration) -> Result<Box<Self>, io::Error>;
     fn send_to(&self, buf: &[u8], addr: &socket2::SockAddr) -> io::Result<usize>;
     fn recv_from(&self, buf: &mut [u8]) -> io::Result<(usize, std::net::IpAddr, Ttl)>;
@@ -100,20 +100,12 @@ pub(crate) mod tests {
 
         fn send_to(&self, buf: &[u8], addr: &socket2::SockAddr) -> io::Result<usize> {
             if self.on_send == OnSend::ReturnErr {
-                return Err(io::Error::new(
-                    io::ErrorKind::Other,
-                    "simulating error in mock",
-                ));
+                return Err(io::Error::new(io::ErrorKind::Other, "simulating error in mock"));
             }
             self.sent.lock().unwrap().push((
                 buf.to_vec(),
                 addr.as_socket()
-                    .ok_or_else(|| {
-                        io::Error::new(
-                            io::ErrorKind::Other,
-                            "error in extracting IP address from SockAddr",
-                        )
-                    })?
+                    .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "error in extracting IP address from SockAddr"))?
                     .ip(),
             ));
             Ok(buf.len())
@@ -123,10 +115,7 @@ pub(crate) mod tests {
             let on_receive: OnReceive = *self.on_receive.lock().unwrap();
             match on_receive {
                 OnReceive::ReturnWouldBlock => {
-                    return Err(io::Error::new(
-                        io::ErrorKind::WouldBlock,
-                        "simulating would-block in mock",
-                    ));
+                    return Err(io::Error::new(io::ErrorKind::WouldBlock, "simulating would-block in mock"));
                 }
                 OnReceive::ReturnDefault(cnt) => {
                     *self.on_receive.lock().unwrap() = if cnt <= 1 {
@@ -146,8 +135,7 @@ pub(crate) mod tests {
             *received_cnt += 1;
 
             let buf2 = vec![0u8; EchoReplyPacket::minimum_packet_size() + payload.len()];
-            let mut package: MutableEchoReplyPacket<'_> =
-                MutableEchoReplyPacket::owned(buf2).unwrap();
+            let mut package: MutableEchoReplyPacket<'_> = MutableEchoReplyPacket::owned(buf2).unwrap();
             package.set_icmp_type(IcmpType::new(0)); // echo reply
             package.set_icmp_code(IcmpCode::new(0)); // echo reply
             package.set_identifier(0xABCD_u16);
@@ -159,11 +147,7 @@ pub(crate) mod tests {
                 buf[i] = *b;
             }
 
-            Ok((
-                package.packet_size(),
-                "127.0.0.1".parse::<IpAddr>().unwrap(),
-                Ttl(128),
-            ))
+            Ok((package.packet_size(), "127.0.0.1".parse::<IpAddr>().unwrap(), Ttl(128)))
         }
     }
 }

@@ -1,4 +1,4 @@
-use ping_fox::{PingFoxConfig, PingReceiveResult, PingReceiveResultData};
+use ping_fox::{PingFoxConfig, PingReceive, PingReceiveData};
 use std::net::Ipv4Addr;
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::Duration;
@@ -33,9 +33,7 @@ struct StopCondition {
 
 impl StopCondition {
     pub(crate) fn new() -> Self {
-        Self {
-            condition: Arc::new((Mutex::new(false), Condvar::new())),
-        }
+        Self { condition: Arc::new((Mutex::new(false), Condvar::new())) }
     }
 
     pub(crate) fn set_should_stop(&self) {
@@ -85,14 +83,9 @@ fn main() -> Result<(), GenericError> {
         addresses.push(address.parse::<Ipv4Addr>()?);
     }
 
-    let config = PingFoxConfig {
-        ips: &addresses,
-        timeout: Duration::from_secs(1),
-        channel_size: 8,
-    };
+    let config = PingFoxConfig { ips: &addresses, timeout: Duration::from_secs(1), channel_size: 8 };
 
-    let (mut ping_sender, mut ping_receiver) =
-        ping_fox::create::<ping_fox::icmp::v4::DgramSocket>(&config)?;
+    let (mut ping_sender, mut ping_receiver) = ping_fox::create::<ping_fox::icmp::v4::DgramSocket>(&config)?;
     let (tx, rx) = std::sync::mpsc::sync_channel(8);
     let stop_condition_1 = StopCondition::new();
     let stop_condition_2 = stop_condition_1.clone();
@@ -101,13 +94,13 @@ fn main() -> Result<(), GenericError> {
         let ping_result = ping_sender.send_ping_to_each_address();
         match ping_result {
             Err(e) => {
-                println!("ERROR Err(e): {:?}", e);
+                println!("ERROR: {:?}", e);
                 break;
             }
             Ok(tokens) => {
                 let send_tokens_result = tx.send(tokens);
                 if let Err(e) = send_tokens_result {
-                    println!("ERROR Err(e): {:?}", e);
+                    println!("ERROR: {:?}", e);
                 }
             }
         }
@@ -123,23 +116,17 @@ fn main() -> Result<(), GenericError> {
         for token in ping_sent_tokens {
             let ping_output = ping_receiver.receive_ping(token);
             match ping_output {
-                Ok(PingReceiveResult::Data(PingReceiveResultData {
-                    package_size,
-                    ip_addr,
-                    ttl,
-                    sequence_number,
-                    ping_duration,
-                })) => {
+                Ok(PingReceive::Data(PingReceiveData { package_size, ip_addr, ttl, sequence_number, ping_duration })) => {
                     println!(
                         "{package_size} bytes from {ip_addr}: icmp_seq={sequence_number} ttl={ttl} time={ping_duration:?}",
                     );
                     i += 1;
                 }
-                Err(e) => {
-                    println!("ERROR Err(e): {:?}", e);
+                Ok(PingReceive::Timeout) => {
+                    println!("receive timed out");
                 }
-                _ => {
-                    // TODO
+                Err(e) => {
+                    println!("ERROR: {:?}", e);
                 }
             }
             if i >= args.count {
@@ -150,7 +137,7 @@ fn main() -> Result<(), GenericError> {
     stop_condition_2.set_should_stop();
     let join_result = thrd2.join();
     if let Err(e) = join_result {
-        println!("ERROR Err(e): {:?}", e);
+        println!("ERROR: {:?}", e);
     }
 
     Ok(())

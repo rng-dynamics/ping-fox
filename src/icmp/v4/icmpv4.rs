@@ -1,13 +1,10 @@
 use super::Socket;
 use crate::icmp::v4::SequenceNumber;
+use crate::records::PingReceiveRecordData;
 use crate::PingError;
-use crate::PingReceiveData;
 use pnet_packet::icmp::{
     echo_reply::EchoReplyPacket,
-    echo_request::{
-        EchoRequestPacket as EchoRequestPacketV4,
-        MutableEchoRequestPacket as MutableEchoRequestPacketV4,
-    },
+    echo_request::{EchoRequestPacket as EchoRequestPacketV4, MutableEchoRequestPacket as MutableEchoRequestPacketV4},
     IcmpPacket, IcmpTypes,
 };
 use pnet_packet::Packet;
@@ -17,7 +14,7 @@ use std::net::{IpAddr, Ipv4Addr};
 use std::result::Result;
 use std::time::Instant;
 
-pub(crate) const PAYLOAD_SIZE: usize = 56;
+const PAYLOAD_SIZE: usize = 56;
 
 pub(crate) struct IcmpV4<S> {
     payload: [u8; PAYLOAD_SIZE],
@@ -42,30 +39,26 @@ where
         let ip_addr = IpAddr::V4(ipv4);
         let addr = std::net::SocketAddr::new(ip_addr, 0);
 
-        let package = new_icmpv4_package(sequence_number, &self.payload).ok_or(PingError {
-            message: "could not create ICMP package".to_owned(),
-        })?;
+        let package = new_icmpv4_package(sequence_number, &self.payload)
+            .ok_or(PingError { message: "could not create ICMP package".to_owned() })?;
 
         // TODO(as): do not use Instant::now() directly.
         let start_time: Instant = Instant::now();
-        self.socket
-            .send_to(pnet_packet::Packet::packet(&package), &addr.into())?;
+        self.socket.send_to(pnet_packet::Packet::packet(&package), &addr.into())?;
 
         Ok((PAYLOAD_SIZE, ip_addr, sequence_number, start_time))
     }
 
-    pub(crate) fn try_receive(&self) -> std::result::Result<Option<PingReceiveData>, io::Error> {
+    pub(crate) fn try_receive(&self) -> std::result::Result<Option<PingReceiveRecordData>, io::Error> {
         let mut buf1 = [0u8; 128];
         match self.socket.recv_from(&mut buf1) {
             Err(e) if e.kind() == io::ErrorKind::WouldBlock => Ok(None),
             Err(e) => Err(e),
             Ok((package_size, ip_addr, ttl)) => {
                 let receive_time: Instant = Instant::now();
-                let echo_reply_package =
-                    EchoReplyPacket::new(&buf1).expect("could not initialize echo reply package");
-                let sequence_number: SequenceNumber =
-                    echo_reply_package.get_sequence_number().into();
-                Ok(Some(PingReceiveData {
+                let echo_reply_package = EchoReplyPacket::new(&buf1).expect("could not initialize echo reply package");
+                let sequence_number: SequenceNumber = echo_reply_package.get_sequence_number().into();
+                Ok(Some(PingReceiveRecordData {
                     package_size,
                     ip_addr,
                     ttl,
@@ -119,8 +112,7 @@ mod tests {
 
     #[test]
     fn test_try_receive() {
-        let socket_mock: SocketMock =
-            SocketMock::new(OnSend::ReturnDefault, OnReceive::ReturnDefault(1));
+        let socket_mock: SocketMock = SocketMock::new(OnSend::ReturnDefault, OnReceive::ReturnDefault(1));
         let socket_mock_clone = socket_mock.clone();
         let icmpv4 = IcmpV4::new(socket_mock_clone);
 
@@ -128,13 +120,8 @@ mod tests {
 
         assert!(result.is_ok());
         assert!(result.as_ref().unwrap().is_some());
-        let PingReceiveData {
-            package_size,
-            ip_addr,
-            ttl: _,
-            sequence_number: _,
-            receive_time: _,
-        } = result.unwrap().unwrap();
+        let PingReceiveRecordData { package_size, ip_addr, ttl: _, sequence_number: _, receive_time: _ } =
+            result.unwrap().unwrap();
         assert!(package_size >= EchoReplyPacket::minimum_packet_size());
         assert!(ip_addr == Ipv4Addr::new(127, 0, 0, 1));
         socket_mock.should_receive_number_of_messages(1);

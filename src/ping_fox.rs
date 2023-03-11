@@ -1,18 +1,17 @@
-use crate::event::ping_send_event_channel;
 use crate::icmp::v4::Socket;
-use crate::GenericError;
+use crate::records::ping_send_record_channel;
 use crate::IcmpV4;
 use crate::PingDataBuffer;
 use crate::PingReceiver;
+use crate::PingResult;
 use crate::PingSender;
 use std::collections::VecDeque;
 use std::net::Ipv4Addr;
 use std::sync::Arc;
 use std::time::Duration;
 
-pub type PingResult<T> = std::result::Result<T, GenericError>;
-
-#[non_exhaustive] // prevent construction outside of this crate
+// The attribute non_exhaustive prevents construction outside of this crate.
+#[non_exhaustive]
 pub struct PingSentToken {}
 
 #[allow(clippy::module_name_repetitions)]
@@ -26,7 +25,6 @@ pub fn create<S>(config: &PingFoxConfig<'_>) -> PingResult<(PingSender<S>, PingR
 where
     S: Socket + 'static,
 {
-    // TODO: can we get rid of the (implicitely used) Box? Leave it for now.
     let socket: S = *S::new(config.timeout)?;
     Ok(create_with_socket(config, socket))
 }
@@ -38,11 +36,11 @@ where
     let ips = config.ips.iter().copied().collect::<VecDeque<Ipv4Addr>>();
 
     let icmpv4 = Arc::new(IcmpV4::new(socket));
-    let (send_event_tx, send_event_rx) = ping_send_event_channel(config.channel_size);
-    let ping_data_buffer = PingDataBuffer::new(send_event_rx);
+    let (send_record_tx, send_record_rx) = ping_send_record_channel(config.channel_size);
+    let ping_data_buffer = PingDataBuffer::new(send_record_rx);
 
     (
-        PingSender::new(icmpv4.clone(), send_event_tx, ips),
+        PingSender::new(icmpv4.clone(), send_record_tx, ips),
         PingReceiver::new(icmpv4, ping_data_buffer),
     )
 }
@@ -55,11 +53,7 @@ mod tests {
 
     #[test]
     fn ping_localhost_succeeds() {
-        let config = PingFoxConfig {
-            ips: &[Ipv4Addr::new(127, 0, 0, 1)],
-            timeout: Duration::from_secs(1),
-            channel_size: 4,
-        };
+        let config = PingFoxConfig { ips: &[Ipv4Addr::new(127, 0, 0, 1)], timeout: Duration::from_secs(1), channel_size: 4 };
 
         let (mut ping_sender, mut ping_receiver) = super::create::<SocketMock>(&config).unwrap();
         let mut tokens = ping_sender.send_ping_to_each_address().unwrap();

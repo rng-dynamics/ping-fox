@@ -1,8 +1,5 @@
 use std::{error::Error, fmt};
 
-// TODO: move to own file
-pub type GenericError = Box<dyn Error + Send + Sync + 'static>;
-
 #[derive(Debug)]
 pub struct PingError {
     pub message: String,
@@ -27,9 +24,7 @@ impl Error for PingError {
 
 impl From<std::io::Error> for PingError {
     fn from(error: std::io::Error) -> PingError {
-        PingError {
-            message: error.to_string(),
-        }
+        PingError { message: error.to_string() }
     }
 }
 
@@ -41,29 +36,21 @@ mod tests {
 
     #[test]
     fn fmt_without_message() {
-        let ping_error = PingError {
-            message: String::new(),
-        };
+        let ping_error = PingError { message: String::new() };
         let fmt_str = format!("{ping_error}");
         assert_eq!("PingError", fmt_str);
     }
 
     #[test]
     fn fmt_with_message() {
-        let ping_error = PingError {
-            message: "testing std::fmt::Display".to_string(),
-        };
+        let ping_error = PingError { message: "testing std::fmt::Display".to_string() };
         let fmt_str = format!("{ping_error}");
         assert_eq!("PingError: testing std::fmt::Display", fmt_str);
     }
 
     #[test]
     fn source() {
-        assert!(PingError {
-            message: String::new()
-        }
-        .source()
-        .is_none());
+        assert!(PingError { message: String::new() }.source().is_none());
     }
 
     #[test]

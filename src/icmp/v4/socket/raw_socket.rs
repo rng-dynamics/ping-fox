@@ -4,7 +4,6 @@ use pnet_packet::{ipv4::Ipv4Packet, Packet};
 use socket2::{Domain, Protocol, Type};
 use std::{io, time::Duration};
 
-// TODO: should be pub(crate) ?
 pub struct RawSocket {
     socket: socket2::Socket,
 }
@@ -13,9 +12,7 @@ impl Socket for RawSocket {
     fn new(timeout: Duration) -> Result<Box<RawSocket>, io::Error> {
         tracing::trace!("creating RawSocket");
         let socket = socket2::Socket::new(Domain::IPV4, Type::RAW, Some(Protocol::ICMPV4))?;
-        socket
-            .set_read_timeout(Some(timeout))
-            .expect("could not set socket timeout");
+        socket.set_read_timeout(Some(timeout)).expect("could not set socket timeout");
         Ok(Box::new(RawSocket { socket }))
     }
 
@@ -33,24 +30,16 @@ impl Socket for RawSocket {
         // In fact, even if we would use MaybeUninit here we would have
         // to use unsafe somewhere to copy the data out of MaybeUninit.
         let (_, socket_addr) = socket2::Socket::recv_from(&self.socket, unsafe {
-            &mut *(std::ptr::addr_of_mut!(recv_buf) as *mut [u8]
-                as *mut [std::mem::MaybeUninit<u8>])
+            &mut *(std::ptr::addr_of_mut!(recv_buf) as *mut [u8] as *mut [std::mem::MaybeUninit<u8>])
         })?;
         // On a RAW socket we get an IP packet.
         let ipv4_packet = Ipv4Packet::new(&recv_buf).expect("could not initialize IPv4 package");
         let ip_payload: &[u8] = ipv4_packet.payload();
         if ip_payload.len() > buf.len() {
-            return Err(io::Error::new(
-                io::ErrorKind::Other,
-                "recveive buffer too small",
-            ));
+            return Err(io::Error::new(io::ErrorKind::Other, "recveive buffer too small"));
         }
         buf[..ip_payload.len()].copy_from_slice(ip_payload);
         let ip = *socket_addr.as_socket_ipv4().expect("logic error").ip();
-        Ok((
-            ip_payload.len(),
-            std::net::IpAddr::V4(ip),
-            ipv4_packet.get_ttl().into(),
-        ))
+        Ok((ip_payload.len(), std::net::IpAddr::V4(ip), ipv4_packet.get_ttl().into()))
     }
 }

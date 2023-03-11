@@ -2,16 +2,14 @@ use std::net::IpAddr;
 use std::time::Duration;
 
 #[derive(Debug)]
-pub enum PingReceiveResult {
-    Data(PingReceiveResultData),
+pub enum PingReceive {
+    Data(PingReceiveData),
     Timeout,
 }
 
-// TODO: rename (but PingReceiveData is already taken by another struct).
-// TODO: rename file (to fit)
 #[derive(Debug)]
 #[allow(clippy::module_name_repetitions)]
-pub struct PingReceiveResultData {
+pub struct PingReceiveData {
     pub package_size: usize,
     pub ip_addr: IpAddr,
     pub ttl: u8,
