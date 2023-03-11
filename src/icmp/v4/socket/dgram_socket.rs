@@ -3,7 +3,7 @@ use crate::icmp::v4::Ttl;
 use socket2::{Domain, Protocol, Type};
 use std::{io, os::unix::prelude::AsRawFd, time::Duration};
 
-mod c_icmp_dgram_api {
+mod c_icmp_dgram {
     #![allow(clippy::pedantic)]
     #![allow(non_upper_case_globals)]
     #![allow(non_camel_case_types)]
@@ -29,7 +29,7 @@ impl Socket for DgramSocket {
     }
 
     fn recv_from(&self, buf: &mut [u8]) -> io::Result<(usize, std::net::IpAddr, Ttl)> {
-        let mut icmp_data = c_icmp_dgram_api::IcmpData {
+        let mut icmp_data = c_icmp_dgram::IcmpData {
             data_buffer: buf.as_mut_ptr(),
             data_buffer_size: buf.len() as u64,
             n_data_bytes_received: 0,
@@ -38,7 +38,7 @@ impl Socket for DgramSocket {
         };
 
         let raw_fd: std::ffi::c_int = self.socket.as_raw_fd();
-        let n_bytes_received = unsafe { c_icmp_dgram_api::recv_from(raw_fd, std::ptr::addr_of_mut!(icmp_data)) };
+        let n_bytes_received = unsafe { c_icmp_dgram::recv_from(raw_fd, std::ptr::addr_of_mut!(icmp_data)) };
         if n_bytes_received < 0 {
             return Err(io::Error::new(
                 io::ErrorKind::Other,

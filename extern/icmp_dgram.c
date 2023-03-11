@@ -1,4 +1,4 @@
-#include "icmp_dgram_api.h"
+#include "icmp_dgram.h"
 
 #include <arpa/inet.h>
 #include <assert.h>
