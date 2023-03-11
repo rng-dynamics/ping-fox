@@ -5,7 +5,7 @@ use more_asserts as ma;
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
 
-use ping_fox::{PingRunnerV2Config, SocketType};
+use ping_fox::PingFoxConfig;
 
 #[test]
 fn test_ping_multiple_net() {
@@ -20,11 +20,10 @@ fn test_ping_multiple_net() {
     let ip_iana_com = Ipv4Addr::new(192, 0, 43, 8);
     let timeout = Duration::from_secs(1);
 
-    let config = PingRunnerV2Config {
+    let config = PingFoxConfig {
         ips: &[ip_example_com, ip_iana_com],
         timeout,
         channel_size: 2,
-        socket_type: SocketType::DGRAM,
     };
 
     let (mut ping_sender, mut ping_receiver) =

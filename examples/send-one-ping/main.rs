@@ -1,6 +1,5 @@
-use ping_fox::{ping_runner_v2::PingRunnerV2Config, ping_runner_v2::SocketType, PingOutputData};
+use ping_fox::{PingFoxConfig, PingResponseData};
 use std::net::Ipv4Addr;
-use std::sync::Arc;
 use std::time::Duration;
 
 type GenericError = Box<dyn std::error::Error + Send + Sync + 'static>;
@@ -35,9 +34,8 @@ struct Args {
 }
 
 fn main() -> Result<(), GenericError> {
-    // TODO: set logging level appropriately
     let subscriber = tracing_subscriber::FmtSubscriber::builder()
-        .with_max_level(tracing::Level::TRACE)
+        .with_max_level(tracing::Level::WARN)
         .finish();
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
@@ -46,11 +44,10 @@ fn main() -> Result<(), GenericError> {
     let addresses = vec![args.address.parse::<Ipv4Addr>()?];
     let timeout = Duration::from_secs(1);
 
-    let config = PingRunnerV2Config {
+    let config = PingFoxConfig {
         ips: &addresses,
         timeout,
         channel_size: 1,
-        socket_type: SocketType::DGRAM,
     };
 
     let (mut ping_sender, mut ping_receiver) =
@@ -58,7 +55,7 @@ fn main() -> Result<(), GenericError> {
     let mut tokens = ping_sender.send_ping_to_each_address()?;
     let token = tokens.pop().expect("logic error: vec empty");
     let ping_response = ping_receiver.receive_ping(token);
-    let PingOutputData {
+    let PingResponseData {
         package_size,
         ip_addr,
         ttl,

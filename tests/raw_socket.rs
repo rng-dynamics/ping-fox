@@ -4,7 +4,7 @@ use std::time::Duration;
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
 
-use ping_fox::{PingRunnerV2Config, SocketType};
+use ping_fox::PingFoxConfig;
 
 /*
 * Note: Raw sockets work only with root privileges.
@@ -17,11 +17,10 @@ fn ping_localhost_with_raw_socket_succeeds() {
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
     let timeout = Duration::from_secs(1);
-    let config = PingRunnerV2Config {
+    let config = PingFoxConfig {
         ips: &[Ipv4Addr::new(127, 0, 0, 1)],
         timeout,
         channel_size: 2,
-        socket_type: SocketType::RAW,
     };
 
     let (mut ping_sender, mut ping_receiver) =

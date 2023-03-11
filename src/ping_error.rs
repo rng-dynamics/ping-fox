@@ -3,7 +3,6 @@ use std::{error::Error, fmt};
 // TODO: move to own file
 pub type GenericError = Box<dyn Error + Send + Sync + 'static>;
 
-// TODO: reuse standard errors whenever the semantics line up.
 #[derive(Debug)]
 pub struct PingError {
     pub message: String,

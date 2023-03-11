@@ -1,8 +1,9 @@
 use crate::event::PingReceiveEvent;
 use crate::ping_data_buffer::PingDataBuffer;
-use crate::ping_runner_v2::PingResult;
-use crate::ping_runner_v2::PingSentEvidence;
-use crate::{IcmpV4, PingOutputData};
+use crate::IcmpV4;
+use crate::PingResponseData;
+use crate::PingResult;
+use crate::PingSentToken;
 use std::sync::Arc;
 
 pub struct PingReceiver<S> {
@@ -14,18 +15,16 @@ impl<S> PingReceiver<S>
 where
     S: crate::icmp::v4::Socket + 'static,
 {
-    // TODO: rename to new
     pub(crate) fn new(icmpv4: Arc<IcmpV4<S>>, ping_data_buffer: PingDataBuffer) -> Self {
         PingReceiver {
             icmpv4,
-            ping_data_buffer: ping_data_buffer.into(),
+            ping_data_buffer,
         }
     }
 
-    // TODO: make private
-    #[allow(clippy::needless_pass_by_value)] // TODO: keep ?
-    pub(crate) fn receive(&self, evidence: PingSentEvidence) -> PingResult<PingReceiveEvent> {
-        let _ = evidence;
+    #[allow(clippy::needless_pass_by_value)]
+    fn receive(&self, token: PingSentToken) -> PingResult<PingReceiveEvent> {
+        let _ = token;
         // (2) Receive on socket.
         let recv_echo_result = self.icmpv4.try_receive();
         match recv_echo_result {
@@ -42,11 +41,8 @@ where
         }
     }
 
-    pub fn receive_ping(
-        &mut self,
-        evidence: PingSentEvidence,
-    ) -> PingResult<Option<PingOutputData>> {
-        match self.receive(evidence) {
+    pub fn receive_ping(&mut self, token: PingSentToken) -> PingResult<Option<PingResponseData>> {
+        match self.receive(token) {
             Err(e) => Err(e),
             Ok(PingReceiveEvent::Timeout) => {
                 // TODO
@@ -78,9 +74,9 @@ mod tests {
         let ping_data_buffer = PingDataBuffer::new(rx);
         let ping_receiver = PingReceiver::new(icmpv4, ping_data_buffer);
 
-        let recv_event_1 = ping_receiver.receive(PingSentEvidence {}).unwrap();
-        let recv_event_2 = ping_receiver.receive(PingSentEvidence {}).unwrap();
-        let recv_event_3 = ping_receiver.receive(PingSentEvidence {}).unwrap();
+        let recv_event_1 = ping_receiver.receive(PingSentToken {}).unwrap();
+        let recv_event_2 = ping_receiver.receive(PingSentToken {}).unwrap();
+        let recv_event_3 = ping_receiver.receive(PingSentToken {}).unwrap();
 
         assert!(matches!(recv_event_1, PingReceiveEvent::Data(_)));
         assert!(matches!(recv_event_2, PingReceiveEvent::Data(_)));
@@ -95,7 +91,7 @@ mod tests {
         let ping_data_buffer = PingDataBuffer::new(rx);
         let ping_receiver = PingReceiver::new(icmpv4, ping_data_buffer);
 
-        let recv_event = ping_receiver.receive(PingSentEvidence {}).unwrap();
+        let recv_event = ping_receiver.receive(PingSentToken {}).unwrap();
 
         assert!(matches!(recv_event, PingReceiveEvent::Timeout));
     }

@@ -1,8 +1,8 @@
 use crate::event::{PingSendEvent, PingSendEventSender};
 use crate::icmp::v4::SequenceNumber;
-use crate::ping_runner_v2::PingSentEvidence;
 use crate::IcmpV4;
 use crate::PingResult;
+use crate::PingSentToken;
 use std::collections::VecDeque;
 use std::net::Ipv4Addr;
 use std::sync::Arc;
@@ -31,11 +31,11 @@ where
         }
     }
 
-    // TODO: make private
-    pub(crate) fn send_one(&self, ip: Ipv4Addr, sequence_number: SequenceNumber) -> PingResult<()> {
+    fn send_one(&self, ip: Ipv4Addr, sequence_number: SequenceNumber) -> PingResult<()> {
         // (1) Send ping.
         let (payload_size, ip_addr, sequence_number, send_time) =
             self.icmpv4.send_one_ping(ip, sequence_number)?;
+        tracing::trace!("icmpv4 sent");
 
         // (2) Dispatch data to PingDataBuffer
         self.ping_sent_event_tx.send(PingSendEvent {
@@ -47,8 +47,7 @@ where
         Ok(())
     }
 
-    // TODO: remove the word 'step'
-    pub fn send_ping_to_each_address(&mut self) -> PingResult<Vec<PingSentEvidence>> {
+    pub fn send_ping_to_each_address(&mut self) -> PingResult<Vec<PingSentToken>> {
         let mut result = Vec::with_capacity(self.ips.len());
         let sequence_number = self.sequence_number;
         self.sequence_number = self.sequence_number.next();
@@ -57,12 +56,10 @@ where
             let send_one_result = self.send_one(*ip, sequence_number);
             match send_one_result {
                 Err(e) => {
-                    // TODO: when you return the error anyway, then do not log. (Check all files.)
-                    tracing::error!("Ping sender::send_one() failed: {}", e);
                     return Err(e);
                 }
                 Ok(()) => {
-                    result.push(PingSentEvidence {});
+                    result.push(PingSentToken {});
                 }
             }
         }

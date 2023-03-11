@@ -1,5 +1,5 @@
 use super::Socket;
-use crate::Ttl;
+use crate::icmp::v4::Ttl;
 use socket2::{Domain, Protocol, Type};
 use std::{io, os::unix::prelude::AsRawFd, time::Duration};
 
@@ -19,7 +19,7 @@ pub struct DgramSocket {
 
 impl Socket for DgramSocket {
     fn new(timeout: Duration) -> Result<Box<DgramSocket>, io::Error> {
-        tracing::trace!("creating icmpv4_socket::CApiDgramIcmpV4Socket");
+        tracing::trace!("creating DgramSocket");
         let socket = socket2::Socket::new(Domain::IPV4, Type::DGRAM, Some(Protocol::ICMPV4))?;
         socket
             .set_read_timeout(Some(timeout))

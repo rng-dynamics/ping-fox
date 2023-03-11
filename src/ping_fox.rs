@@ -12,27 +12,17 @@ use std::time::Duration;
 
 pub type PingResult<T> = std::result::Result<T, GenericError>;
 
-// TODO: write a test that this is not copyable?
-// TODO: rename to Token
 #[non_exhaustive] // prevent construction outside of this crate
-pub struct PingSentEvidence {}
+pub struct PingSentToken {}
 
-pub enum SocketType {
-    DGRAM,
-    RAW,
-}
-
-// TODO: rename
 #[allow(clippy::module_name_repetitions)]
-pub struct PingRunnerV2Config<'a> {
+pub struct PingFoxConfig<'a> {
     pub ips: &'a [Ipv4Addr],
     pub timeout: Duration,
     pub channel_size: usize,
-    // TODO: remove (unused anyway)
-    pub socket_type: SocketType,
 }
 
-pub fn create<S>(config: &PingRunnerV2Config<'_>) -> PingResult<(PingSender<S>, PingReceiver<S>)>
+pub fn create<S>(config: &PingFoxConfig<'_>) -> PingResult<(PingSender<S>, PingReceiver<S>)>
 where
     S: Socket + 'static,
 {
@@ -41,10 +31,7 @@ where
     Ok(create_with_socket(config, socket))
 }
 
-fn create_with_socket<S>(
-    config: &PingRunnerV2Config<'_>,
-    socket: S,
-) -> (PingSender<S>, PingReceiver<S>)
+fn create_with_socket<S>(config: &PingFoxConfig<'_>, socket: S) -> (PingSender<S>, PingReceiver<S>)
 where
     S: Socket + 'static,
 {
@@ -68,11 +55,10 @@ mod tests {
 
     #[test]
     fn ping_localhost_succeeds() {
-        let config = PingRunnerV2Config {
+        let config = PingFoxConfig {
             ips: &[Ipv4Addr::new(127, 0, 0, 1)],
             timeout: Duration::from_secs(1),
             channel_size: 4,
-            socket_type: SocketType::DGRAM,
         };
 
         let (mut ping_sender, mut ping_receiver) = super::create::<SocketMock>(&config).unwrap();

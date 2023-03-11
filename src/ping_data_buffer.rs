@@ -2,14 +2,13 @@ use crate::event::PingSendEvent;
 use crate::event::PingSendEventReceiver;
 use crate::icmp::v4::SequenceNumber;
 use crate::ping_error::PingError;
-use crate::ping_output::PingOutputData;
+use crate::PingResponseData;
 use crate::{PingReceiveData, PingResult};
 use std::collections::HashMap;
 use std::net::IpAddr;
 use std::time::Instant;
 
-// TODO: should be pub(crate)
-pub struct PingDataBuffer {
+pub(crate) struct PingDataBuffer {
     ping_send_event_rx: PingSendEventReceiver,
 
     send_events: HashMap<(SequenceNumber, IpAddr), (usize, Instant)>,
@@ -26,7 +25,6 @@ impl PingDataBuffer {
     pub(crate) fn process_send_events(&mut self) -> usize {
         let mut n_send_events: usize = 0;
         while let Ok(send_event) = self.ping_send_event_rx.try_recv() {
-            // TODO: handle when error is returned from try_recv.
             let PingSendEvent {
                 payload_size,
                 ip_addr,
@@ -43,7 +41,7 @@ impl PingDataBuffer {
     pub(crate) fn process_receive_event2(
         &mut self,
         data: &PingReceiveData,
-    ) -> PingResult<PingOutputData> {
+    ) -> PingResult<PingResponseData> {
         let PingReceiveData {
             package_size,
             ip_addr,
@@ -58,7 +56,7 @@ impl PingDataBuffer {
             .into()),
             Some(&(_payload_size, send_time)) => {
                 self.send_events.remove(&(sequence_number, ip_addr));
-                Ok(PingOutputData {
+                Ok(PingResponseData {
                     package_size,
                     ip_addr,
                     ttl: ttl.into(),

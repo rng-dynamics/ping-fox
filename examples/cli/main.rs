@@ -1,4 +1,4 @@
-use ping_fox::{ping_runner_v2::PingRunnerV2Config, ping_runner_v2::SocketType, PingOutputData};
+use ping_fox::{PingFoxConfig, PingResponseData};
 use std::net::Ipv4Addr;
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::Duration;
@@ -26,22 +26,11 @@ impl std::error::Error for Error {
     }
 }
 
-#[derive(argh::FromArgs)]
-/// ping - send ICMP ECHO_REQUEST to IP addresses
-struct Args {
-    #[argh(option, short = 'c', default = "std::u16::MAX")]
-    /// stop after <count> sent ping messages
-    count: u16,
-
-    #[argh(positional)]
-    /// IP addresses
-    addresses: Vec<String>,
-}
-
 #[derive(Clone)]
 struct StopCondition {
     condition: Arc<(Mutex<bool>, Condvar)>,
 }
+
 impl StopCondition {
     pub(crate) fn new() -> Self {
         Self {
@@ -56,6 +45,7 @@ impl StopCondition {
         cvar.notify_all();
     }
 
+    #[allow(dead_code)]
     pub(crate) fn get_should_stop(&self) -> bool {
         let (lock, _) = &*self.condition;
         let should_stop = lock.lock().unwrap();
@@ -70,14 +60,23 @@ impl StopCondition {
     }
 }
 
-// TODO: rename this example to cli (from cli-2)
+#[derive(argh::FromArgs)]
+/// ping - send ICMP ECHO_REQUEST to IP addresses
+struct Args {
+    #[argh(option, short = 'c', default = "std::u16::MAX")]
+    /// stop after <count> sent ping messages
+    count: u16,
+
+    #[argh(positional)]
+    /// IP addresses
+    addresses: Vec<String>,
+}
+
 fn main() -> Result<(), GenericError> {
     let subscriber = tracing_subscriber::FmtSubscriber::builder()
-        .with_max_level(tracing::Level::TRACE)
+        .with_max_level(tracing::Level::WARN)
         .finish();
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
-
-    tracing::trace!("start");
 
     let args: Args = argh::from_env();
 
@@ -85,19 +84,12 @@ fn main() -> Result<(), GenericError> {
     for address in args.addresses {
         addresses.push(address.parse::<Ipv4Addr>()?);
     }
-    tracing::trace!("addresses.len() == {}", addresses.len());
-    tracing::trace!("args.count == {}", args.count);
 
-    let config = PingRunnerV2Config {
+    let config = PingFoxConfig {
         ips: &addresses,
         timeout: Duration::from_secs(1),
         channel_size: 8,
-        socket_type: SocketType::DGRAM,
     };
-
-    // TODO: Other notes:
-    // You could have a send configuration and a receive configuration object?
-    // Rename to PingCoordinator ?
 
     let (mut ping_sender, mut ping_receiver) =
         ping_fox::create::<ping_fox::icmp::v4::DgramSocket>(&config)?;
@@ -112,8 +104,11 @@ fn main() -> Result<(), GenericError> {
                 println!("ERROR Err(e): {:?}", e);
                 break;
             }
-            Ok(evidences) => {
-                tx.send(evidences);
+            Ok(tokens) => {
+                let send_tokens_result = tx.send(tokens);
+                if let Err(e) = send_tokens_result {
+                    println!("ERROR Err(e): {:?}", e);
+                }
             }
         }
         let should_stop: bool = stop_condition_1.wait_timeout(Duration::from_secs(1));
@@ -124,12 +119,12 @@ fn main() -> Result<(), GenericError> {
 
     let mut i = 0;
     'outer: loop {
-        let ping_sent_evidences = rx.recv()?;
-        for evidence in ping_sent_evidences {
-            let ping_output = ping_receiver.receive_ping(evidence);
+        let ping_sent_tokens = rx.recv()?;
+        for token in ping_sent_tokens {
+            let ping_output = ping_receiver.receive_ping(token);
             match ping_output {
                 Ok(Some(output)) => {
-                    let PingOutputData {
+                    let PingResponseData {
                         package_size,
                         ip_addr,
                         ttl,
@@ -156,7 +151,10 @@ fn main() -> Result<(), GenericError> {
         }
     }
     stop_condition_2.set_should_stop();
-    thrd2.join();
+    let join_result = thrd2.join();
+    if let Err(e) = join_result {
+        println!("ERROR Err(e): {:?}", e);
+    }
 
     Ok(())
 }

@@ -1,8 +1,3 @@
-// TODO: should we do that also with a trait and an associated type?
-// Not sure. This actually seems simple enough.
-// Nevertheless, try what is shorter and nicer.
-// KISS
-
 type TtlInnerType = u8;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]

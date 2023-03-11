@@ -1,4 +1,4 @@
-use crate::Ttl;
+use crate::icmp::v4::Ttl;
 use std::{io, time::Duration};
 
 pub(crate) mod dgram_socket;
@@ -44,10 +44,12 @@ pub(crate) mod tests {
         ReturnDefault(usize),
     }
 
+    type VecOfBuffersAndAddresses = Arc<Mutex<Vec<(Vec<u8>, IpAddr)>>>;
+
     pub(crate) struct SocketMock {
         on_send: OnSend,
         on_receive: Arc<Mutex<OnReceive>>,
-        sent: Arc<Mutex<Vec<(Vec<u8>, IpAddr)>>>,
+        sent: VecOfBuffersAndAddresses,
         received_cnt: Arc<Mutex<u16>>,
     }
 
