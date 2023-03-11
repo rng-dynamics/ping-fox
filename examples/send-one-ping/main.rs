@@ -35,6 +35,7 @@ struct Args {
 }
 
 fn main() -> Result<(), GenericError> {
+    // TODO: set logging level appropriately
     let subscriber = tracing_subscriber::FmtSubscriber::builder()
         .with_max_level(tracing::Level::TRACE)
         .finish();

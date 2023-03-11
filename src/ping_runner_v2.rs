@@ -22,11 +22,13 @@ pub enum SocketType {
     RAW,
 }
 
+// TODO: rename
 #[allow(clippy::module_name_repetitions)]
 pub struct PingRunnerV2Config<'a> {
     pub ips: &'a [Ipv4Addr],
     pub timeout: Duration,
     pub channel_size: usize,
+    // TODO: remove (unused anyway)
     pub socket_type: SocketType,
 }
 

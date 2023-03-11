@@ -11,11 +11,6 @@ pub trait Socket: Send + Sync {
     fn recv_from(&self, buf: &mut [u8]) -> io::Result<(usize, std::net::IpAddr, Ttl)>;
 }
 
-// TODO: remove?
-pub(crate) fn default_timeout() -> Duration {
-    Duration::from_secs(1)
-}
-
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
@@ -32,6 +27,10 @@ pub(crate) mod tests {
     use pnet_packet::icmp::IcmpType;
     use pnet_packet::Packet;
     use pnet_packet::PacketSize;
+
+    pub(crate) fn default_timeout() -> Duration {
+        Duration::from_secs(1)
+    }
 
     #[derive(Clone, Copy, PartialEq, Eq)]
     pub(crate) enum OnSend {

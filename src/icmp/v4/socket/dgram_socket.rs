@@ -88,8 +88,8 @@ mod tests {
 
     #[test]
     fn recv_from_succeeds() {
-        let socket =
-            *DgramSocket::new(super::super::default_timeout()).expect("error creating socket");
+        let socket = *DgramSocket::new(super::super::tests::default_timeout())
+            .expect("error creating socket");
         let payload = [0u8; 64];
         let package =
             crate::icmp::v4::icmpv4::new_icmpv4_package(SequenceNumber(0), &payload).unwrap();

@@ -4,7 +4,8 @@ use pnet_packet::{ipv4::Ipv4Packet, Packet};
 use socket2::{Domain, Protocol, Type};
 use std::{io, time::Duration};
 
-pub(crate) struct RawSocket {
+// TODO: should be pub(crate) ?
+pub struct RawSocket {
     socket: socket2::Socket,
 }
 

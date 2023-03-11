@@ -57,6 +57,7 @@ where
             let send_one_result = self.send_one(*ip, sequence_number);
             match send_one_result {
                 Err(e) => {
+                    // TODO: when you return the error anyway, then do not log. (Check all files.)
                     tracing::error!("Ping sender::send_one() failed: {}", e);
                     return Err(e);
                 }
