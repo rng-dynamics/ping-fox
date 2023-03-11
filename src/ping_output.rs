@@ -7,6 +7,7 @@ pub enum PingOutput {
     End,
 }
 
+// TODO: rename PingResponseData ?
 #[derive(Debug)]
 #[allow(clippy::module_name_repetitions)]
 pub struct PingOutputData {
@@ -17,9 +18,9 @@ pub struct PingOutputData {
     pub ping_duration: Duration,
 }
 
-pub(crate) type PingOutputSender = mpsc::SyncSender<PingOutput>;
-pub(crate) type PingOutputReceiver = mpsc::Receiver<PingOutput>;
-
-pub(crate) fn ping_output_channel(channel_size: usize) -> (PingOutputSender, PingOutputReceiver) {
-    mpsc::sync_channel(channel_size)
-}
+// pub(crate) type PingOutputSender = mpsc::SyncSender<PingOutput>;
+// pub(crate) type PingOutputReceiver = mpsc::Receiver<PingOutput>;
+//
+// pub(crate) fn ping_output_channel(channel_size: usize) -> (PingOutputSender, PingOutputReceiver) {
+//     mpsc::sync_channel(channel_size)
+// }

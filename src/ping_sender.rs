@@ -1,14 +1,17 @@
 use crate::event::{PingSendEvent, PingSendEventSender};
 use crate::icmp::v4::SequenceNumber;
+use crate::ping_runner_v2::PingSentEvidence;
 use crate::IcmpV4;
 use crate::PingResult;
+use std::collections::VecDeque;
 use std::net::Ipv4Addr;
 use std::sync::Arc;
 
-pub(crate) struct PingSender<S> {
-    icmpv4: Arc<IcmpV4>,
-    socket: Arc<S>,
+pub struct PingSender<S> {
+    icmpv4: Arc<IcmpV4<S>>,
     ping_sent_event_tx: PingSendEventSender,
+    ips: VecDeque<Ipv4Addr>,
+    sequence_number: SequenceNumber,
 }
 
 impl<S> PingSender<S>
@@ -16,22 +19,23 @@ where
     S: crate::icmp::v4::Socket + 'static,
 {
     pub(crate) fn new(
-        icmpv4: Arc<IcmpV4>,
-        socket: Arc<S>,
+        icmpv4: Arc<IcmpV4<S>>,
         ping_sent_event_tx: PingSendEventSender,
+        ips: VecDeque<Ipv4Addr>,
     ) -> Self {
         PingSender {
             icmpv4,
-            socket,
             ping_sent_event_tx,
+            ips,
+            sequence_number: SequenceNumber::start_value2(),
         }
     }
 
+    // TODO: make private
     pub(crate) fn send_one(&self, ip: Ipv4Addr, sequence_number: SequenceNumber) -> PingResult<()> {
         // (1) Send ping.
         let (payload_size, ip_addr, sequence_number, send_time) =
-            self.icmpv4
-                .send_one_ping(&*self.socket, ip, sequence_number)?;
+            self.icmpv4.send_one_ping(ip, sequence_number)?;
 
         // (2) Dispatch data to PingDataBuffer
         self.ping_sent_event_tx.send(PingSendEvent {
@@ -41,6 +45,27 @@ where
             send_time,
         })?;
         Ok(())
+    }
+
+    // TODO: remove the word 'step'
+    pub fn send_ping_to_each_address(&mut self) -> PingResult<Vec<PingSentEvidence>> {
+        let mut result = Vec::with_capacity(self.ips.len());
+        let sequence_number = self.sequence_number;
+        self.sequence_number = self.sequence_number.next();
+        for ip in &self.ips {
+            // (2) Send ping
+            let send_one_result = self.send_one(*ip, sequence_number);
+            match send_one_result {
+                Err(e) => {
+                    tracing::error!("Ping sender::send_one() failed: {}", e);
+                    return Err(e);
+                }
+                Ok(()) => {
+                    result.push(PingSentEvidence {});
+                }
+            }
+        }
+        Ok(result)
     }
 }
 
@@ -53,29 +78,19 @@ mod tests {
     use crate::icmp::v4::tests::SocketMock;
     use std::sync::mpsc;
 
-    const CHANNEL_SIZE: usize = 8;
-
     #[test]
     fn send_ping_packages_success() {
-        let socket_mock = Arc::new(SocketMock::new(
-            OnSend::ReturnDefault,
-            OnReceive::ReturnWouldBlock,
-        ));
-        let icmpv4 = Arc::new(IcmpV4::create());
-        let (ping_sent_event_tx, ping_sent_event_rx) = ping_send_event_channel(CHANNEL_SIZE);
+        let socket = SocketMock::new(OnSend::ReturnDefault, OnReceive::ReturnDefault(2));
+        let icmpv4 = Arc::new(IcmpV4::new(socket));
+        let (tx, rx) = ping_send_event_channel(2);
+        let ping_sender = PingSender::new(icmpv4, tx, [].into());
 
-        let ping_sender = PingSender::new(icmpv4, socket_mock, ping_sent_event_tx);
+        let localhost = Ipv4Addr::new(127, 0, 0, 1);
+        ping_sender.send_one(localhost, SequenceNumber(0)).unwrap();
+        ping_sender.send_one(localhost, SequenceNumber(1)).unwrap();
 
-        let ip_127_0_0_1 = Ipv4Addr::new(127, 0, 0, 1);
-        ping_sender
-            .send_one(ip_127_0_0_1, SequenceNumber(0))
-            .unwrap();
-        ping_sender
-            .send_one(ip_127_0_0_1, SequenceNumber(1))
-            .unwrap();
-
-        let ping_sent_event_1 = ping_sent_event_rx.recv();
-        let ping_sent_event_2 = ping_sent_event_rx.recv();
+        let ping_sent_event_1 = rx.recv();
+        let ping_sent_event_2 = rx.recv();
 
         assert!(ping_sent_event_1.is_ok());
         let PingSendEvent {
@@ -84,7 +99,7 @@ mod tests {
             sequence_number,
             send_time: _,
         } = ping_sent_event_1.unwrap();
-        assert!(ip_127_0_0_1 == ip_addr);
+        assert!(localhost == ip_addr);
         assert!(sequence_number == SequenceNumber(0));
 
         assert!(ping_sent_event_2.is_ok());
@@ -94,25 +109,21 @@ mod tests {
             sequence_number,
             send_time: _,
         } = ping_sent_event_2.unwrap();
-        assert!(ip_127_0_0_1 == ip_addr);
+        assert!(localhost == ip_addr);
         assert!(sequence_number == SequenceNumber(1));
     }
 
     #[test]
     fn when_socket_fails_then_ping_sender_fails() {
-        let socket_mock = Arc::new(SocketMock::new(
-            OnSend::ReturnErr,
-            OnReceive::ReturnWouldBlock,
-        ));
-        let icmpv4 = Arc::new(IcmpV4::create());
-        let (ping_sent_event_tx, ping_sent_event_rx) = ping_send_event_channel(CHANNEL_SIZE);
+        let socket = SocketMock::new(OnSend::ReturnErr, OnReceive::ReturnWouldBlock);
+        let icmpv4 = Arc::new(IcmpV4::new(socket));
+        let (tx, rx) = ping_send_event_channel(1);
+        let ping_sender = PingSender::new(icmpv4, tx, [].into());
 
-        let ping_sender = PingSender::new(icmpv4, socket_mock, ping_sent_event_tx);
-
-        let ip_127_0_0_1 = Ipv4Addr::new(127, 0, 0, 1);
-        let send_result = ping_sender.send_one(ip_127_0_0_1, SequenceNumber(0));
+        let localhost = Ipv4Addr::new(127, 0, 0, 1);
+        let send_result = ping_sender.send_one(localhost, SequenceNumber(0));
 
         assert!(send_result.is_err());
-        assert!(ping_sent_event_rx.try_recv() == Err(mpsc::TryRecvError::Empty));
+        assert!(rx.try_recv() == Err(mpsc::TryRecvError::Empty));
     }
 }

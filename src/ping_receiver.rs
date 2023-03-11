@@ -1,142 +1,102 @@
-use crate::event::{PingReceiveEvent, PingReceiveEventSender};
-use crate::IcmpV4;
-use crate::PingResult;
+use crate::event::PingReceiveEvent;
+use crate::ping_data_buffer::PingDataBuffer;
+use crate::ping_runner_v2::PingResult;
+use crate::ping_runner_v2::PingSentEvidence;
+use crate::{IcmpV4, PingOutputData};
 use std::sync::Arc;
 
-pub(crate) struct PingReceiver<S> {
-    socket: Arc<S>,
-    ping_received_event_tx: PingReceiveEventSender,
+pub struct PingReceiver<S> {
+    icmpv4: Arc<IcmpV4<S>>,
+    ping_data_buffer: PingDataBuffer,
 }
 
 impl<S> PingReceiver<S>
 where
     S: crate::icmp::v4::Socket + 'static,
 {
-    pub(crate) fn new(socket: Arc<S>, ping_received_event_tx: PingReceiveEventSender) -> Self {
+    // TODO: rename to new
+    pub(crate) fn new(icmpv4: Arc<IcmpV4<S>>, ping_data_buffer: PingDataBuffer) -> Self {
         PingReceiver {
-            socket,
-            ping_received_event_tx,
+            icmpv4,
+            ping_data_buffer: ping_data_buffer.into(),
         }
     }
 
-    pub(crate) fn receive(&self) -> PingResult<()> {
+    // TODO: make private
+    #[allow(clippy::needless_pass_by_value)] // TODO: keep ?
+    pub(crate) fn receive(&self, evidence: PingSentEvidence) -> PingResult<PingReceiveEvent> {
+        let _ = evidence;
         // (2) Receive on socket.
-        let recv_echo_result = IcmpV4::try_receive(&*self.socket);
+        let recv_echo_result = self.icmpv4.try_receive();
         match recv_echo_result {
             Ok(None) => {
                 // Timeout: nothing received.
-                self.ping_received_event_tx
-                    .send(PingReceiveEvent::Timeout)?;
+                Ok(PingReceiveEvent::Timeout)
             }
-            Err(e) => {
-                tracing::error!("error receiving icmp: {}", e);
-            }
+            Err(e) => Err(e.into()),
             Ok(Some(ping_receive_data)) => {
                 tracing::trace!("icmpv4 received");
                 // (3) Send ping-received-event.
-                self.ping_received_event_tx
-                    .send(PingReceiveEvent::Data(ping_receive_data))?;
+                Ok(PingReceiveEvent::Data(ping_receive_data))
             }
         }
-        Ok(())
+    }
+
+    pub fn receive_ping(
+        &mut self,
+        evidence: PingSentEvidence,
+    ) -> PingResult<Option<PingOutputData>> {
+        match self.receive(evidence) {
+            Err(e) => Err(e),
+            Ok(PingReceiveEvent::Timeout) => {
+                // TODO
+                Ok(None)
+            }
+            Ok(PingReceiveEvent::Data(data)) => {
+                let _ = self.ping_data_buffer.process_send_events();
+                let output = self.ping_data_buffer.process_receive_event2(&data)?;
+                Ok(Some(output))
+            }
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::event::{ping_receive_event_channel, ping_send_event_channel};
+    use crate::event::ping_send_event_channel;
+    use crate::event::PingReceiveEvent;
     use crate::icmp::v4::tests::OnReceive;
     use crate::icmp::v4::tests::OnSend;
     use crate::icmp::v4::tests::SocketMock;
-    use crate::icmp::v4::SequenceNumber;
-    use crate::PingSender;
-    use std::net::Ipv4Addr;
-
-    const CHANNEL_SIZE: usize = 8;
 
     #[test]
-    fn receive_ping_packages_success_1() {
-        let socket_mock = Arc::new(SocketMock::new(
-            OnSend::ReturnDefault,
-            OnReceive::ReturnDefault(2),
-        ));
-        let (tx_2, rx_2) = ping_receive_event_channel(CHANNEL_SIZE);
+    fn receive_ping_packages_success() {
+        let socket = SocketMock::new(OnSend::ReturnDefault, OnReceive::ReturnDefault(2));
+        let icmpv4 = Arc::new(IcmpV4::new(socket));
+        let (_tx, rx) = ping_send_event_channel(1);
+        let ping_data_buffer = PingDataBuffer::new(rx);
+        let ping_receiver = PingReceiver::new(icmpv4, ping_data_buffer);
 
-        let ping_receiver = PingReceiver::new(socket_mock, tx_2);
-        ping_receiver.receive().unwrap();
-        ping_receiver.receive().unwrap();
+        let recv_event_1 = ping_receiver.receive(PingSentEvidence {}).unwrap();
+        let recv_event_2 = ping_receiver.receive(PingSentEvidence {}).unwrap();
+        let recv_event_3 = ping_receiver.receive(PingSentEvidence {}).unwrap();
 
-        let ping_receive_event_1 = rx_2.recv();
-        let ping_receive_event_2 = rx_2.recv();
-
-        assert!(ping_receive_event_1.is_ok());
-        assert!(ping_receive_event_2.is_ok());
-    }
-
-    #[test]
-    fn receive_ping_packages_success_2() {
-        let socket_mock = Arc::new(SocketMock::new(
-            OnSend::ReturnDefault,
-            OnReceive::ReturnDefault(2),
-        ));
-        let icmpv4 = Arc::new(IcmpV4::create());
-
-        let (tx_2, rx_2) = ping_receive_event_channel(CHANNEL_SIZE);
-        let (ping_send_event_tx, _ping_send_event_rx) = ping_send_event_channel(CHANNEL_SIZE);
-
-        let ping_sender = PingSender::new(icmpv4, socket_mock.clone(), ping_send_event_tx);
-
-        let ip_127_0_0_1 = Ipv4Addr::new(127, 0, 0, 1);
-        ping_sender
-            .send_one(ip_127_0_0_1, SequenceNumber(0))
-            .unwrap();
-        ping_sender
-            .send_one(ip_127_0_0_1, SequenceNumber(1))
-            .unwrap();
-        ping_sender
-            .send_one(ip_127_0_0_1, SequenceNumber(2))
-            .unwrap();
-
-        let ping_receiver = PingReceiver::new(socket_mock, tx_2);
-        ping_receiver.receive().unwrap();
-        ping_receiver.receive().unwrap();
-        ping_receiver.receive().unwrap();
-
-        let ping_receiver_result_1 = rx_2.recv();
-        let ping_receiver_result_2 = rx_2.recv();
-        let ping_receiver_result_3 = rx_2.recv();
-
-        assert!(matches!(
-            ping_receiver_result_1.unwrap(),
-            PingReceiveEvent::Data(..)
-        ));
-        assert!(matches!(
-            ping_receiver_result_2.unwrap(),
-            PingReceiveEvent::Data(..)
-        ));
-        assert!(ping_receiver_result_3.unwrap() == PingReceiveEvent::Timeout);
+        assert!(matches!(recv_event_1, PingReceiveEvent::Data(_)));
+        assert!(matches!(recv_event_2, PingReceiveEvent::Data(_)));
+        assert!(matches!(recv_event_3, PingReceiveEvent::Timeout));
     }
 
     #[test]
     fn when_socket_fails_then_ping_receiver_returns_timeout() {
-        let socket_mock = Arc::new(SocketMock::new(
-            OnSend::ReturnDefault,
-            OnReceive::ReturnWouldBlock,
-        ));
-        let icmpv4 = Arc::new(IcmpV4::create());
-        let (tx_2, rx_2) = ping_receive_event_channel(CHANNEL_SIZE);
-        let (ping_sent_event_tx, _ping_sent_event_rx) = ping_send_event_channel(CHANNEL_SIZE);
-        let ping_sender = PingSender::new(icmpv4, socket_mock.clone(), ping_sent_event_tx);
-        let ip_127_0_0_1 = Ipv4Addr::new(127, 0, 0, 1);
-        ping_sender
-            .send_one(ip_127_0_0_1, SequenceNumber(0))
-            .unwrap();
+        let socket = SocketMock::new(OnSend::ReturnDefault, OnReceive::ReturnWouldBlock);
+        let icmpv4 = Arc::new(IcmpV4::new(socket));
+        let (_tx, rx) = ping_send_event_channel(1);
+        let ping_data_buffer = PingDataBuffer::new(rx);
+        let ping_receiver = PingReceiver::new(icmpv4, ping_data_buffer);
 
-        let ping_receiver = PingReceiver::new(socket_mock, tx_2);
-        let receive_result = ping_receiver.receive();
+        let recv_event = ping_receiver.receive(PingSentEvidence {}).unwrap();
 
-        assert!(receive_result.is_ok());
-        assert!(rx_2.recv().unwrap() == PingReceiveEvent::Timeout);
+        assert!(matches!(recv_event, PingReceiveEvent::Timeout));
     }
 }

@@ -1,11 +1,12 @@
-mod icmpv4;
+pub(crate) mod icmpv4;
 mod sequence_number;
 mod socket;
 
 pub(crate) use icmpv4::IcmpV4;
 pub(crate) use sequence_number::SequenceNumber;
 pub(crate) use socket::default_timeout;
-pub(crate) use socket::dgram_socket::CDgramSocket;
+// TODO: should be pub(crate) ?
+pub use socket::dgram_socket::DgramSocket;
 pub(crate) use socket::raw_socket::RawSocket;
 pub(crate) use socket::Socket;
 

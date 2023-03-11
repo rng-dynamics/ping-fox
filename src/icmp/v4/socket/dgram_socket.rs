@@ -12,22 +12,21 @@ mod c_icmp_dgram_api {
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 }
 
-pub(crate) struct CDgramSocket {
+// TODO: should be pub(crate)
+pub struct DgramSocket {
     socket: socket2::Socket,
 }
 
-impl CDgramSocket {
-    pub(crate) fn create(timeout: Duration) -> Result<impl Socket, io::Error> {
+impl Socket for DgramSocket {
+    fn new(timeout: Duration) -> Result<Box<DgramSocket>, io::Error> {
         tracing::trace!("creating icmpv4_socket::CApiDgramIcmpV4Socket");
         let socket = socket2::Socket::new(Domain::IPV4, Type::DGRAM, Some(Protocol::ICMPV4))?;
         socket
             .set_read_timeout(Some(timeout))
             .expect("could not set socket timeout");
-        Ok(CDgramSocket { socket })
+        Ok(Box::new(DgramSocket { socket }))
     }
-}
 
-impl Socket for CDgramSocket {
     fn send_to(&self, buf: &[u8], addr: &socket2::SockAddr) -> io::Result<usize> {
         self.socket.send_to(buf, addr)
     }
@@ -89,16 +88,15 @@ mod tests {
 
     #[test]
     fn recv_from_succeeds() {
-        let icmpv4 = crate::IcmpV4::create();
-        let package = icmpv4.new_icmpv4_package(SequenceNumber(0)).unwrap();
+        let socket =
+            *DgramSocket::new(super::super::default_timeout()).expect("error creating socket");
+        let payload = [0u8; 64];
+        let package =
+            crate::icmp::v4::icmpv4::new_icmpv4_package(SequenceNumber(0), &payload).unwrap();
 
-        let dgram_socket =
-            CDgramSocket::create(super::super::default_timeout()).expect("error creating socket");
-
-        dgram_socket
+        socket
             .send_to(
                 pnet_packet::Packet::packet(&package),
-                // &"127.0.0.1:7".parse::<SocketAddr>().unwrap().into(),
                 // &"8.8.8.8:7".parse::<SocketAddr>().unwrap().into(),
                 &"127.0.0.1:0".parse::<SocketAddr>().unwrap().into(),
             )
@@ -106,7 +104,7 @@ mod tests {
 
         let mut buffer = [0u8; BUFFER_LEN];
 
-        let result = dgram_socket.recv_from(&mut buffer);
+        let result = socket.recv_from(&mut buffer);
         assert!(result.is_ok());
         let (n_bytes, _addr, _ttl) = result.unwrap();
         assert!(n_bytes > 0);

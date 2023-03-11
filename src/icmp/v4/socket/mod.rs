@@ -4,13 +4,16 @@ use std::{io, time::Duration};
 pub(crate) mod dgram_socket;
 pub(crate) mod raw_socket;
 
-pub(crate) trait Socket: Send + Sync {
+// TODO: make pub(crate)
+pub trait Socket: Send + Sync {
+    fn new(timeout: Duration) -> Result<Box<Self>, io::Error>;
     fn send_to(&self, buf: &[u8], addr: &socket2::SockAddr) -> io::Result<usize>;
     fn recv_from(&self, buf: &mut [u8]) -> io::Result<(usize, std::net::IpAddr, Ttl)>;
 }
 
+// TODO: remove?
 pub(crate) fn default_timeout() -> Duration {
-    Duration::from_secs(2)
+    Duration::from_secs(1)
 }
 
 #[cfg(test)]
@@ -18,6 +21,7 @@ pub(crate) mod tests {
     use super::*;
 
     use std::net::IpAddr;
+    use std::sync::Arc;
     use std::sync::Mutex;
 
     use pnet_packet::icmp::checksum;
@@ -29,7 +33,7 @@ pub(crate) mod tests {
     use pnet_packet::Packet;
     use pnet_packet::PacketSize;
 
-    #[derive(PartialEq, Eq)]
+    #[derive(Clone, Copy, PartialEq, Eq)]
     pub(crate) enum OnSend {
         ReturnErr,
         ReturnDefault,
@@ -43,18 +47,29 @@ pub(crate) mod tests {
 
     pub(crate) struct SocketMock {
         on_send: OnSend,
-        on_receive: Mutex<OnReceive>,
-        sent: Mutex<Vec<(Vec<u8>, IpAddr)>>,
-        received_cnt: Mutex<usize>,
+        on_receive: Arc<Mutex<OnReceive>>,
+        sent: Arc<Mutex<Vec<(Vec<u8>, IpAddr)>>>,
+        received_cnt: Arc<Mutex<u16>>,
+    }
+
+    impl Clone for SocketMock {
+        fn clone(&self) -> Self {
+            SocketMock {
+                on_send: self.on_send,
+                on_receive: self.on_receive.clone(),
+                sent: self.sent.clone(),
+                received_cnt: self.received_cnt.clone(),
+            }
+        }
     }
 
     impl SocketMock {
         pub(crate) fn new(on_send: OnSend, on_receive: OnReceive) -> Self {
             Self {
                 on_send,
-                on_receive: Mutex::new(on_receive),
-                sent: Mutex::new(vec![]),
-                received_cnt: Mutex::new(0),
+                on_receive: Arc::new(Mutex::new(on_receive)),
+                sent: Arc::new(Mutex::new(vec![])),
+                received_cnt: Arc::new(Mutex::new(0)),
             }
         }
 
@@ -68,13 +83,20 @@ pub(crate) mod tests {
             self
         }
 
-        pub(crate) fn should_receive_number_of_messages(&self, n: usize) -> &Self {
+        pub(crate) fn should_receive_number_of_messages(&self, n: u16) -> &Self {
             assert!(n == *self.received_cnt.lock().unwrap());
             self
         }
     }
 
     impl Socket for SocketMock {
+        fn new(_timeout: Duration) -> Result<Box<Self>, io::Error> {
+            Ok(Box::new(Self::new(
+                OnSend::ReturnDefault,
+                OnReceive::ReturnDefault(usize::max_value()),
+            )))
+        }
+
         fn send_to(&self, buf: &[u8], addr: &socket2::SockAddr) -> io::Result<usize> {
             if self.on_send == OnSend::ReturnErr {
                 return Err(io::Error::new(
@@ -128,7 +150,7 @@ pub(crate) mod tests {
             package.set_icmp_type(IcmpType::new(0)); // echo reply
             package.set_icmp_code(IcmpCode::new(0)); // echo reply
             package.set_identifier(0xABCD_u16);
-            package.set_sequence_number(0);
+            package.set_sequence_number(*received_cnt);
             package.set_payload(&payload);
             package.set_checksum(0_u16);
             package.set_checksum(checksum(&IcmpPacket::new(package.packet()).unwrap()));

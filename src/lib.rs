@@ -3,7 +3,7 @@
 #![allow(clippy::missing_errors_doc)] // TODO
 
 pub use ping_output::*;
-pub use ping_runner::*;
+pub use ping_runner_v2::*;
 
 use icmp::v4::IcmpV4;
 use ping_data_buffer::PingDataBuffer;
@@ -14,12 +14,12 @@ use ping_sender::PingSender;
 use ttl::Ttl;
 
 mod event;
-mod icmp;
+pub mod icmp;
 mod ping_data_buffer;
 mod ping_error;
 mod ping_output;
 mod ping_receive_data;
 mod ping_receiver;
-mod ping_runner;
+pub mod ping_runner_v2; // TODO: remove
 mod ping_sender;
 mod ttl;
