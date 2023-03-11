@@ -1,4 +1,4 @@
-use ping_fox::{PingFoxConfig, PingResponseData};
+use ping_fox::{PingFoxConfig, PingReceiveResult, PingReceiveResultData};
 use std::net::Ipv4Addr;
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::Duration;
@@ -80,7 +80,7 @@ fn main() -> Result<(), GenericError> {
 
     let args: Args = argh::from_env();
 
-    let mut addresses = Vec::<Ipv4Addr>::new();
+    let mut addresses = Vec::<Ipv4Addr>::with_capacity(args.addresses.len());
     for address in args.addresses {
         addresses.push(address.parse::<Ipv4Addr>()?);
     }
@@ -123,18 +123,15 @@ fn main() -> Result<(), GenericError> {
         for token in ping_sent_tokens {
             let ping_output = ping_receiver.receive_ping(token);
             match ping_output {
-                Ok(Some(output)) => {
-                    let PingResponseData {
-                        package_size,
-                        ip_addr,
-                        ttl,
-                        sequence_number,
-                        ping_duration,
-                    } = output;
+                Ok(PingReceiveResult::Data(PingReceiveResultData {
+                    package_size,
+                    ip_addr,
+                    ttl,
+                    sequence_number,
+                    ping_duration,
+                })) => {
                     println!(
-                        "{package_size} bytes from {ip_addr}: \
-                            icmp_seq={sequence_number} ttl={ttl} \
-                            time={ping_duration:?}",
+                        "{package_size} bytes from {ip_addr}: icmp_seq={sequence_number} ttl={ttl} time={ping_duration:?}",
                     );
                     i += 1;
                 }

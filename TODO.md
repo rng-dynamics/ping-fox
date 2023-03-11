@@ -1,13 +1,10 @@
 ## TODO
 
-- Evaluate: Can we refactor ping-fox to not use any threads internaly, but offer an interface to advance through the steps.
-- The timeout time of the socket should be configurable.
-- Rethink the explicit state in PingRunner.
+- After adding TTL, reevaluate our tests/test coverage/design.
 - Go over all TODOs in code and resolve or delete.
 - Can we have coverage of the extern c code?
 - Handle timeout-event in ping-data-buffer.
 - Instant::now(): apply dependency inversion and mock it in tests.
-- After adding TTL, reevaluate our tests/test coverage/design.
 - What should happen if we receive an unexpected message (e.g., a duplicate)?
 - Should we test RawSocket::recv_from? Unit test? Can we test Raw socket also in an integration test elegantly?
 - More badges wirh shields.io?
@@ -15,6 +12,7 @@
 
 ## done
 
+- The timeout time of the socket should be configurable.
 - The count in PingRunner does not seem to work. (Try the cli example.)
 - TTL
 - Cleanup PingError.

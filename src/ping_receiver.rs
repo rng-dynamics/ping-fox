@@ -1,7 +1,7 @@
 use crate::event::PingReceiveEvent;
 use crate::ping_data_buffer::PingDataBuffer;
 use crate::IcmpV4;
-use crate::PingResponseData;
+use crate::PingReceiveResult;
 use crate::PingResult;
 use crate::PingSentToken;
 use std::sync::Arc;
@@ -41,17 +41,17 @@ where
         }
     }
 
-    pub fn receive_ping(&mut self, token: PingSentToken) -> PingResult<Option<PingResponseData>> {
+    pub fn receive_ping(&mut self, token: PingSentToken) -> PingResult<PingReceiveResult> {
         match self.receive(token) {
             Err(e) => Err(e),
             Ok(PingReceiveEvent::Timeout) => {
                 // TODO
-                Ok(None)
+                Ok(PingReceiveResult::Timeout)
             }
             Ok(PingReceiveEvent::Data(data)) => {
                 let _ = self.ping_data_buffer.process_send_events();
-                let output = self.ping_data_buffer.process_receive_event2(&data)?;
-                Ok(Some(output))
+                let output = self.ping_data_buffer.process_receive_event(&data)?;
+                Ok(PingReceiveResult::Data(output))
             }
         }
     }

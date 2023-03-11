@@ -1,4 +1,4 @@
-use ping_fox::{PingFoxConfig, PingResponseData};
+use ping_fox::{PingFoxConfig, PingReceiveResult, PingReceiveResultData};
 use std::net::Ipv4Addr;
 use std::time::Duration;
 
@@ -55,16 +55,18 @@ fn main() -> Result<(), GenericError> {
     let mut tokens = ping_sender.send_ping_to_each_address()?;
     let token = tokens.pop().expect("logic error: vec empty");
     let ping_response = ping_receiver.receive_ping(token);
-    let PingResponseData {
+    if let PingReceiveResult::Data(PingReceiveResultData {
         package_size,
         ip_addr,
         ttl,
         sequence_number,
         ping_duration,
-    } = ping_response?.unwrap();
-    println!(
+    }) = ping_response?
+    {
+        println!(
         "{package_size} bytes from {ip_addr}: icmp_seq={sequence_number} ttl={ttl} time={ping_duration:?}",
     );
+    }
 
     Ok(())
 }

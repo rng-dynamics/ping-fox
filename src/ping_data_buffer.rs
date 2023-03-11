@@ -2,7 +2,7 @@ use crate::event::PingSendEvent;
 use crate::event::PingSendEventReceiver;
 use crate::icmp::v4::SequenceNumber;
 use crate::ping_error::PingError;
-use crate::PingResponseData;
+use crate::PingReceiveResultData;
 use crate::{PingReceiveData, PingResult};
 use std::collections::HashMap;
 use std::net::IpAddr;
@@ -38,10 +38,10 @@ impl PingDataBuffer {
         n_send_events
     }
 
-    pub(crate) fn process_receive_event2(
+    pub(crate) fn process_receive_event(
         &mut self,
         data: &PingReceiveData,
-    ) -> PingResult<PingResponseData> {
+    ) -> PingResult<PingReceiveResultData> {
         let PingReceiveData {
             package_size,
             ip_addr,
@@ -56,7 +56,7 @@ impl PingDataBuffer {
             .into()),
             Some(&(_payload_size, send_time)) => {
                 self.send_events.remove(&(sequence_number, ip_addr));
-                Ok(PingResponseData {
+                Ok(PingReceiveResultData {
                     package_size,
                     ip_addr,
                     ttl: ttl.into(),
