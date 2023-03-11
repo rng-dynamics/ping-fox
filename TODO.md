@@ -1,6 +1,6 @@
 ## TODO
 
-- Create README.md.
+- Add content to README.md.
 - Size of payload should be configurable.
 - Cargo fmt:
   - group_imports?
