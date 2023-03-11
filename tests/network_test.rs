@@ -25,23 +25,20 @@ fn test_ping_multiple_net() {
     let token1 = tokens.pop().expect("PingSentToken missing");
     let token2 = tokens.pop().expect("PingSentToken missing");
 
-    // check first ping output
-    if let PingReceive::Data(first) = ping_receiver.receive_ping(token1).unwrap() {
-        let ip_1_match_1 = first.ip_addr == ip_example_com;
-        let ip_1_match_2 = first.ip_addr == ip_iana_com;
+    if let PingReceive::Data(receive_data_1) = ping_receiver.receive_ping(token1).unwrap() {
+        let ip_1_match_1 = receive_data_1.ip_addr == ip_example_com;
+        let ip_1_match_2 = receive_data_1.ip_addr == ip_iana_com;
         assert!(ip_1_match_1 || ip_1_match_2);
-        ma::assert_gt!(first.ping_duration, Duration::from_secs(0));
+        ma::assert_gt!(receive_data_1.ping_duration, Duration::from_secs(0));
     } else {
         panic!("ping receiver did not return expected data");
     }
 
-    // check first ping output
-
-    if let PingReceive::Data(second) = ping_receiver.receive_ping(token2).unwrap() {
-        let ip_2_match_1 = second.ip_addr == ip_example_com;
-        let ip_2_match_2 = second.ip_addr == ip_iana_com;
+    if let PingReceive::Data(receive_data_2) = ping_receiver.receive_ping(token2).unwrap() {
+        let ip_2_match_1 = receive_data_2.ip_addr == ip_example_com;
+        let ip_2_match_2 = receive_data_2.ip_addr == ip_iana_com;
         assert!(ip_2_match_1 || ip_2_match_2);
-        ma::assert_gt!(second.ping_duration, Duration::from_secs(0));
+        ma::assert_gt!(receive_data_2.ping_duration, Duration::from_secs(0));
     } else {
         panic!("ping receiver did not return expected data");
     }

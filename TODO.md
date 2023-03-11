@@ -1,9 +1,11 @@
 ## TODO
 
+- Create README.md.
 - Size of payload should be configurable.
 - Cargo fmt:
   - group_imports?
 - Should we remove the trait icmp::v4::Socket from the public interface?
+- In ping_sender.rs and in ping_receiver.rs there is potential to raise the test coverage without (much) effort.
 - After adding TTL, reevaluate our tests/test coverage/design.
 - Go over all TODOs in code and resolve or delete.
 - Can we have coverage of the extern c code?
