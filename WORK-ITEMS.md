@@ -1,20 +1,19 @@
-## TODO
+## OPEN WORK-ITEMS
 
 - Add content to README.md.
 - Size of payload should be configurable.
 - Cargo fmt:
   - group_imports?
-- Should we remove the trait icmp::v4::Socket from the public interface?
+- Cargo audit.
 - In ping_sender.rs and in ping_receiver.rs there is potential to raise the test coverage without (much) effort.
-- After adding TTL, reevaluate our tests/test coverage/design.
+- Reevaluate our tests/test coverage/design.
 - Go over all TODOs in code and resolve or delete.
 - Can we have coverage of the extern c code?
-- Handle timeout-event in ping-data-buffer.
+- Are timeouts handled corretly everywhere?
 - Instant::now(): apply dependency inversion and mock it in tests.
 - What should happen if we receive an unexpected message (e.g., a duplicate)?
 - Should we test RawSocket::recv_from? Unit test? Can we test Raw socket also in an integration test elegantly?
 - More badges wirh shields.io?
-- Can we make the sender terminate immediately (similar to std::condition_variable::wait_for() in C++)?
 
 ## done
 
