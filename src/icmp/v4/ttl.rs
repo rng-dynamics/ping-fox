@@ -1,7 +1,7 @@
 type TtlInnerType = u8;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub struct Ttl(pub TtlInnerType);
+pub(crate) struct Ttl(pub TtlInnerType);
 
 impl From<TtlInnerType> for Ttl {
     fn from(integer: TtlInnerType) -> Self {

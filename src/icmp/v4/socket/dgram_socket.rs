@@ -1,4 +1,4 @@
-use super::Socket;
+use super::TSocket;
 use crate::icmp::v4::Ttl;
 use socket2::{Domain, Protocol, Type};
 use std::{io, os::unix::prelude::AsRawFd, time::Duration};
@@ -12,18 +12,20 @@ mod c_icmp_dgram {
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 }
 
-pub struct DgramSocket {
+pub(crate) struct DgramSocket {
     socket: socket2::Socket,
 }
 
-impl Socket for DgramSocket {
-    fn new(timeout: Duration) -> Result<Box<DgramSocket>, io::Error> {
+impl DgramSocket {
+    pub(crate) fn new(timeout: Duration) -> Result<Self, io::Error> {
         tracing::trace!("creating DgramSocket");
         let socket = socket2::Socket::new(Domain::IPV4, Type::DGRAM, Some(Protocol::ICMPV4))?;
         socket.set_read_timeout(Some(timeout)).expect("could not set socket timeout");
-        Ok(Box::new(DgramSocket { socket }))
+        Ok(DgramSocket { socket })
     }
+}
 
+impl TSocket for DgramSocket {
     fn send_to(&self, buf: &[u8], addr: &socket2::SockAddr) -> io::Result<usize> {
         self.socket.send_to(buf, addr)
     }
@@ -80,7 +82,7 @@ mod tests {
 
     #[test]
     fn recv_from_succeeds() {
-        let socket = *DgramSocket::new(super::super::tests::default_timeout()).expect("error creating socket");
+        let socket = DgramSocket::new(super::super::tests::default_timeout()).expect("error creating socket");
         let payload = [0u8; 64];
         let package = crate::icmp::v4::icmpv4::new_icmpv4_package(SequenceNumber(0), &payload).unwrap();
 

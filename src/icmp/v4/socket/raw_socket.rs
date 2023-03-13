@@ -1,21 +1,23 @@
-use super::Socket;
+use super::TSocket;
 use crate::icmp::v4::Ttl;
 use pnet_packet::{ipv4::Ipv4Packet, Packet};
 use socket2::{Domain, Protocol, Type};
 use std::{io, time::Duration};
 
-pub struct RawSocket {
+pub(crate) struct RawSocket {
     socket: socket2::Socket,
 }
 
-impl Socket for RawSocket {
-    fn new(timeout: Duration) -> Result<Box<RawSocket>, io::Error> {
+impl RawSocket {
+    pub(crate) fn new(timeout: Duration) -> Result<Self, io::Error> {
         tracing::trace!("creating RawSocket");
         let socket = socket2::Socket::new(Domain::IPV4, Type::RAW, Some(Protocol::ICMPV4))?;
         socket.set_read_timeout(Some(timeout)).expect("could not set socket timeout");
-        Ok(Box::new(RawSocket { socket }))
+        Ok(RawSocket { socket })
     }
+}
 
+impl TSocket for RawSocket {
     fn send_to(&self, buf: &[u8], addr: &socket2::SockAddr) -> io::Result<usize> {
         self.socket.send_to(buf, addr)
     }

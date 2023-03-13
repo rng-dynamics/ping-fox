@@ -1,14 +1,44 @@
-use crate::icmp::v4::Ttl;
+use crate::{icmp::v4::Ttl, SocketType};
 use std::{io, time::Duration};
+
+use super::{DgramSocket, RawSocket};
 
 pub(crate) mod dgram_socket;
 pub(crate) mod raw_socket;
 
-pub trait Socket: Send + Sync {
-    // TODO: can we get rid of the Box inside the Result?
-    fn new(timeout: Duration) -> Result<Box<Self>, io::Error>;
+pub(crate) trait TSocket: Send + Sync {
     fn send_to(&self, buf: &[u8], addr: &socket2::SockAddr) -> io::Result<usize>;
     fn recv_from(&self, buf: &mut [u8]) -> io::Result<(usize, std::net::IpAddr, Ttl)>;
+}
+
+pub(crate) enum Socket {
+    Raw(RawSocket),
+    Dgram(DgramSocket),
+}
+
+impl Socket {
+    pub(crate) fn new(socket_type: SocketType, timeout: Duration) -> Result<Self, io::Error> {
+        match socket_type {
+            SocketType::DGRAM => Ok(Socket::Dgram(DgramSocket::new(timeout)?)),
+            SocketType::RAW => Ok(Socket::Raw(RawSocket::new(timeout)?)),
+        }
+    }
+}
+
+impl TSocket for Socket {
+    fn send_to(&self, buf: &[u8], addr: &socket2::SockAddr) -> io::Result<usize> {
+        match self {
+            Socket::Dgram(socket) => socket.send_to(buf, addr),
+            Socket::Raw(socket) => socket.send_to(buf, addr),
+        }
+    }
+
+    fn recv_from(&self, buf: &mut [u8]) -> io::Result<(usize, std::net::IpAddr, Ttl)> {
+        match self {
+            Socket::Dgram(socket) => socket.recv_from(buf),
+            Socket::Raw(socket) => socket.recv_from(buf),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -74,6 +104,10 @@ pub(crate) mod tests {
             }
         }
 
+        pub(crate) fn new_default() -> Self {
+            Self::new(OnSend::ReturnDefault, OnReceive::ReturnDefault(usize::max_value()))
+        }
+
         pub(crate) fn should_send_number_of_messages(&self, n: usize) -> &Self {
             assert!(n == self.sent.lock().unwrap().len());
             self
@@ -90,14 +124,7 @@ pub(crate) mod tests {
         }
     }
 
-    impl Socket for SocketMock {
-        fn new(_timeout: Duration) -> Result<Box<Self>, io::Error> {
-            Ok(Box::new(Self::new(
-                OnSend::ReturnDefault,
-                OnReceive::ReturnDefault(usize::max_value()),
-            )))
-        }
-
+    impl TSocket for SocketMock {
         fn send_to(&self, buf: &[u8], addr: &socket2::SockAddr) -> io::Result<usize> {
             if self.on_send == OnSend::ReturnErr {
                 return Err(io::Error::new(io::ErrorKind::Other, "simulating error in mock"));
@@ -127,9 +154,6 @@ pub(crate) mod tests {
             };
 
             let payload: Vec<u8> = vec![0xFF, 0xFF, 0xFF, 0xFF];
-            if buf.len() < EchoReplyPacket::minimum_packet_size() + payload.len() {
-                return Err(io::Error::new(io::ErrorKind::Other, "buffer too small"));
-            }
 
             let mut received_cnt = self.received_cnt.lock().unwrap();
             *received_cnt += 1;
@@ -143,9 +167,11 @@ pub(crate) mod tests {
             package.set_payload(&payload);
             package.set_checksum(0_u16);
             package.set_checksum(checksum(&IcmpPacket::new(package.packet()).unwrap()));
-            for (i, b) in package.packet().iter().enumerate() {
-                buf[i] = *b;
+            let package_bytes: &[u8] = package.packet();
+            if buf.len() < package_bytes.len() {
+                return Err(io::Error::new(io::ErrorKind::Other, "buffer too small"));
             }
+            buf[..package_bytes.len()].copy_from_slice(package_bytes);
 
             Ok((package.packet_size(), "127.0.0.1".parse::<IpAddr>().unwrap(), Ttl(128)))
         }

@@ -1,4 +1,4 @@
-use super::Socket;
+use super::TSocket;
 use crate::icmp::v4::SequenceNumber;
 use crate::records::PingReceiveRecordData;
 use crate::PingError;
@@ -23,7 +23,7 @@ pub(crate) struct IcmpV4<S> {
 
 impl<S> IcmpV4<S>
 where
-    S: Socket + 'static,
+    S: TSocket + 'static,
 {
     pub(crate) fn new(socket: S) -> IcmpV4<S> {
         let mut payload = [0u8; PAYLOAD_SIZE];
@@ -42,7 +42,6 @@ where
         let package = new_icmpv4_package(sequence_number, &self.payload)
             .ok_or(PingError { message: "could not create ICMP package".to_owned() })?;
 
-        // TODO(as): do not use Instant::now() directly.
         let start_time: Instant = Instant::now();
         self.socket.send_to(pnet_packet::Packet::packet(&package), &addr.into())?;
 

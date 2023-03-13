@@ -5,8 +5,6 @@
 pub use ping_fox::*;
 pub use ping_receive::*;
 
-pub mod icmp;
-
 use generic_error::GenericError;
 use icmp::v4::IcmpV4;
 use ping_data_buffer::PingDataBuffer;
@@ -16,6 +14,7 @@ use ping_result::PingResult;
 use ping_sender::PingSender;
 
 mod generic_error;
+mod icmp;
 mod ping_data_buffer;
 mod ping_error;
 mod ping_fox;

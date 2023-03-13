@@ -6,14 +6,14 @@ use crate::PingResult;
 use crate::PingSentToken;
 use std::sync::Arc;
 
-pub struct PingReceiver<S> {
+pub(crate) struct PingReceiver<S> {
     icmpv4: Arc<IcmpV4<S>>,
     ping_data_buffer: PingDataBuffer,
 }
 
 impl<S> PingReceiver<S>
 where
-    S: crate::icmp::v4::Socket + 'static,
+    S: crate::icmp::v4::TSocket + 'static,
 {
     pub(crate) fn new(icmpv4: Arc<IcmpV4<S>>, ping_data_buffer: PingDataBuffer) -> Self {
         PingReceiver { icmpv4, ping_data_buffer }
@@ -38,7 +38,7 @@ where
         }
     }
 
-    pub fn receive_ping(&mut self, token: PingSentToken) -> PingResult<PingReceive> {
+    pub(crate) fn receive_ping(&mut self, token: PingSentToken) -> PingResult<PingReceive> {
         match self.receive(token) {
             Err(e) => Err(e),
             Ok(PingReceiveRecord::Timeout) => Ok(PingReceive::Timeout),

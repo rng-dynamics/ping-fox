@@ -1,4 +1,4 @@
-use ping_fox::{PingFoxConfig, PingReceive, PingReceiveData};
+use ping_fox::{PingFoxConfig, PingReceive, PingReceiveData, SocketType};
 use std::net::Ipv4Addr;
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::Duration;
@@ -83,9 +83,10 @@ fn main() -> Result<(), GenericError> {
         addresses.push(address.parse::<Ipv4Addr>()?);
     }
 
-    let config = PingFoxConfig { ips: &addresses, timeout: Duration::from_secs(1), channel_size: 8 };
+    let config =
+        PingFoxConfig { ips: &addresses, timeout: Duration::from_secs(1), channel_size: 8, socket_type: SocketType::DGRAM };
 
-    let (mut ping_sender, mut ping_receiver) = ping_fox::create::<ping_fox::icmp::v4::DgramSocket>(&config)?;
+    let (mut ping_sender, mut ping_receiver) = ping_fox::create(&config)?;
     let (tx, rx) = std::sync::mpsc::sync_channel(8);
     let stop_condition_1 = StopCondition::new();
     let stop_condition_2 = stop_condition_1.clone();

@@ -7,7 +7,7 @@ use std::collections::VecDeque;
 use std::net::Ipv4Addr;
 use std::sync::Arc;
 
-pub struct PingSender<S> {
+pub(crate) struct PingSender<S> {
     icmpv4: Arc<IcmpV4<S>>,
     ping_sent_record_tx: PingSendRecordSender,
     ips: VecDeque<Ipv4Addr>,
@@ -16,7 +16,7 @@ pub struct PingSender<S> {
 
 impl<S> PingSender<S>
 where
-    S: crate::icmp::v4::Socket + 'static,
+    S: crate::icmp::v4::TSocket + 'static,
 {
     pub(crate) fn new(icmpv4: Arc<IcmpV4<S>>, ping_sent_record_tx: PingSendRecordSender, ips: VecDeque<Ipv4Addr>) -> Self {
         PingSender { icmpv4, ping_sent_record_tx, ips, sequence_number: SequenceNumber::start_value2() }
@@ -33,7 +33,7 @@ where
         Ok(())
     }
 
-    pub fn send_ping_to_each_address(&mut self) -> PingResult<Vec<PingSentToken>> {
+    pub(crate) fn send_ping_to_each_address(&mut self) -> PingResult<Vec<PingSentToken>> {
         let mut result = Vec::with_capacity(self.ips.len());
         let sequence_number = self.sequence_number;
         self.sequence_number = self.sequence_number.next();
