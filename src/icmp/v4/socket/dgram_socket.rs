@@ -1,9 +1,9 @@
-use super::Socket;
-use crate::Ttl;
+use super::TSocket;
+use crate::icmp::v4::Ttl;
 use socket2::{Domain, Protocol, Type};
 use std::{io, os::unix::prelude::AsRawFd, time::Duration};
 
-mod c_icmp_dgram_api {
+mod c_icmp_dgram {
     #![allow(clippy::pedantic)]
     #![allow(non_upper_case_globals)]
     #![allow(non_camel_case_types)]
@@ -12,28 +12,26 @@ mod c_icmp_dgram_api {
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 }
 
-pub(crate) struct CDgramSocket {
+pub(crate) struct DgramSocket {
     socket: socket2::Socket,
 }
 
-impl CDgramSocket {
-    pub(crate) fn create(timeout: Duration) -> Result<impl Socket, io::Error> {
-        tracing::trace!("creating icmpv4_socket::CApiDgramIcmpV4Socket");
+impl DgramSocket {
+    pub(crate) fn new(timeout: Duration) -> Result<Self, io::Error> {
+        tracing::trace!("creating DgramSocket");
         let socket = socket2::Socket::new(Domain::IPV4, Type::DGRAM, Some(Protocol::ICMPV4))?;
-        socket
-            .set_read_timeout(Some(timeout))
-            .expect("could not set socket timeout");
-        Ok(CDgramSocket { socket })
+        socket.set_read_timeout(Some(timeout)).expect("could not set socket timeout");
+        Ok(DgramSocket { socket })
     }
 }
 
-impl Socket for CDgramSocket {
+impl TSocket for DgramSocket {
     fn send_to(&self, buf: &[u8], addr: &socket2::SockAddr) -> io::Result<usize> {
         self.socket.send_to(buf, addr)
     }
 
     fn recv_from(&self, buf: &mut [u8]) -> io::Result<(usize, std::net::IpAddr, Ttl)> {
-        let mut icmp_data = c_icmp_dgram_api::IcmpData {
+        let mut icmp_data = c_icmp_dgram::IcmpData {
             data_buffer: buf.as_mut_ptr(),
             data_buffer_size: buf.len() as u64,
             n_data_bytes_received: 0,
@@ -42,8 +40,7 @@ impl Socket for CDgramSocket {
         };
 
         let raw_fd: std::ffi::c_int = self.socket.as_raw_fd();
-        let n_bytes_received =
-            unsafe { c_icmp_dgram_api::recv_from(raw_fd, std::ptr::addr_of_mut!(icmp_data)) };
+        let n_bytes_received = unsafe { c_icmp_dgram::recv_from(raw_fd, std::ptr::addr_of_mut!(icmp_data)) };
         if n_bytes_received < 0 {
             return Err(io::Error::new(
                 io::ErrorKind::Other,
@@ -56,9 +53,7 @@ impl Socket for CDgramSocket {
         let addr_str: String = str_from_null_terminated_utf8_safe(&icmp_data.addr_str).to_string();
         Ok((
             icmp_data.n_data_bytes_received,
-            addr_str
-                .parse::<std::net::IpAddr>()
-                .expect("error reading IP address"),
+            addr_str.parse::<std::net::IpAddr>().expect("error reading IP address"),
             icmp_data.ttl.try_into().expect("error decoding TTL"),
         ))
     }
@@ -74,9 +69,7 @@ fn str_from_null_terminated_utf8_safe(s: &[u8]) -> &str {
 
 // unsafe: s must contain a null byte
 unsafe fn str_from_null_terminated_utf8(s: &[u8]) -> &str {
-    std::ffi::CStr::from_ptr(s.as_ptr().cast())
-        .to_str()
-        .unwrap()
+    std::ffi::CStr::from_ptr(s.as_ptr().cast()).to_str().unwrap()
 }
 
 #[cfg(test)]
@@ -89,16 +82,13 @@ mod tests {
 
     #[test]
     fn recv_from_succeeds() {
-        let icmpv4 = crate::IcmpV4::create();
-        let package = icmpv4.new_icmpv4_package(SequenceNumber(0)).unwrap();
+        let socket = DgramSocket::new(super::super::tests::default_timeout()).expect("error creating socket");
+        let payload = [0u8; 64];
+        let package = crate::icmp::v4::icmpv4::new_icmpv4_package(SequenceNumber(0), &payload).unwrap();
 
-        let dgram_socket =
-            CDgramSocket::create(super::super::default_timeout()).expect("error creating socket");
-
-        dgram_socket
+        socket
             .send_to(
                 pnet_packet::Packet::packet(&package),
-                // &"127.0.0.1:7".parse::<SocketAddr>().unwrap().into(),
                 // &"8.8.8.8:7".parse::<SocketAddr>().unwrap().into(),
                 &"127.0.0.1:0".parse::<SocketAddr>().unwrap().into(),
             )
@@ -106,7 +96,7 @@ mod tests {
 
         let mut buffer = [0u8; BUFFER_LEN];
 
-        let result = dgram_socket.recv_from(&mut buffer);
+        let result = socket.recv_from(&mut buffer);
         assert!(result.is_ok());
         let (n_bytes, _addr, _ttl) = result.unwrap();
         assert!(n_bytes > 0);
