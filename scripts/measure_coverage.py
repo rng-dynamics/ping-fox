@@ -33,6 +33,20 @@ def run_coverage(env):
         stdout=sys.stdout,
         stderr=sys.stderr,
     )
+    subprocess.run(
+        [
+            "cargo",
+            "+nightly",
+            "test",
+            "test_ping_to_localhost_with_dgram_socket",
+            "--",
+            "--exact",
+        ],
+        env=env,
+        check=True,
+        stdout=sys.stdout,
+        stderr=sys.stderr,
+    )
     print("ok.")
 
 

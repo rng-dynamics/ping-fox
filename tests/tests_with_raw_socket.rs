@@ -10,8 +10,8 @@ use ping_fox::{PingFoxConfig, PingReceive, SocketType};
 * Note: Raw sockets work only with root privileges.
 */
 #[test]
-fn ping_localhost_with_raw_socket_succeeds() {
-    let subscriber = FmtSubscriber::builder().with_max_level(Level::TRACE).finish();
+fn test_ping_to_localhost_with_raw_socket() {
+    let subscriber = FmtSubscriber::builder().with_max_level(Level::ERROR).finish();
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
     let timeout = Duration::from_secs(1);
