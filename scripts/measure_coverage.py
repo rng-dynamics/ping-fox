@@ -96,6 +96,8 @@ def generate_report():
             "/*",
             "--ignore",
             "target/debug/build/*",
+            "--ignore",
+            "tests/*",
             "-o",
             "./target/debug/lcov.info",
         ],
