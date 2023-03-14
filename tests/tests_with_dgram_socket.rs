@@ -1,16 +1,24 @@
+use ping_fox::{PingFoxConfig, PingReceive, SocketType};
 use std::net::Ipv4Addr;
+use std::sync::Once;
 use std::time::Duration;
 
 use more_asserts as ma;
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
 
-use ping_fox::{PingFoxConfig, PingReceive, SocketType};
+static SETUP: Once = Once::new();
+
+fn setup() {
+    SETUP.call_once(|| {
+        let subscriber = FmtSubscriber::builder().with_max_level(Level::ERROR).finish();
+        tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+    });
+}
 
 #[test]
 fn test_ping_to_localhost_with_dgram_socket() {
-    let subscriber = FmtSubscriber::builder().with_max_level(Level::ERROR).finish();
-    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+    setup();
 
     let localhost = Ipv4Addr::new(127, 0, 0, 1);
     let timeout = Duration::from_secs(1);
@@ -31,8 +39,7 @@ fn test_ping_to_localhost_with_dgram_socket() {
 
 #[test]
 fn test_ping_to_multiple_addresses_on_network_with_dgram_socket() {
-    let subscriber = FmtSubscriber::builder().with_max_level(Level::ERROR).finish();
-    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+    setup();
 
     // example.com 93.184.216.34
     let ip_example_com = Ipv4Addr::new(93, 184, 216, 34);
