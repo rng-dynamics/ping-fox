@@ -19,7 +19,7 @@ where
     S: crate::icmp::v4::TSocket + 'static,
 {
     pub(crate) fn new(icmpv4: Arc<IcmpV4<S>>, ping_sent_record_tx: PingSendRecordSender, ips: VecDeque<Ipv4Addr>) -> Self {
-        PingSender { icmpv4, ping_sent_record_tx, ips, sequence_number: SequenceNumber::start_value2() }
+        PingSender { icmpv4, ping_sent_record_tx, ips, sequence_number: SequenceNumber::start_value() }
     }
 
     fn send_one(&self, ip: Ipv4Addr, sequence_number: SequenceNumber) -> PingResult<()> {
@@ -70,8 +70,8 @@ mod tests {
         let ping_sender = PingSender::new(icmpv4, tx, [].into());
 
         let localhost = Ipv4Addr::new(127, 0, 0, 1);
-        ping_sender.send_one(localhost, SequenceNumber(0)).unwrap();
-        ping_sender.send_one(localhost, SequenceNumber(1)).unwrap();
+        ping_sender.send_one(localhost, SequenceNumber::from(1)).unwrap();
+        ping_sender.send_one(localhost, SequenceNumber::from(2)).unwrap();
 
         let ping_sent_record_1 = rx.recv();
         let ping_sent_record_2 = rx.recv();
@@ -79,12 +79,12 @@ mod tests {
         assert!(ping_sent_record_1.is_ok());
         let PingSendRecord { payload_size: _, ip_addr, sequence_number, send_time: _ } = ping_sent_record_1.unwrap();
         assert!(localhost == ip_addr);
-        assert!(sequence_number == SequenceNumber(0));
+        assert!(sequence_number == SequenceNumber::from(1));
 
         assert!(ping_sent_record_2.is_ok());
         let PingSendRecord { payload_size: _, ip_addr, sequence_number, send_time: _ } = ping_sent_record_2.unwrap();
         assert!(localhost == ip_addr);
-        assert!(sequence_number == SequenceNumber(1));
+        assert!(sequence_number == SequenceNumber::from(2));
     }
 
     #[test]
@@ -95,7 +95,7 @@ mod tests {
         let ping_sender = PingSender::new(icmpv4, tx, [].into());
 
         let localhost = Ipv4Addr::new(127, 0, 0, 1);
-        let send_result = ping_sender.send_one(localhost, SequenceNumber(0));
+        let send_result = ping_sender.send_one(localhost, SequenceNumber::start_value());
 
         assert!(send_result.is_err());
         assert!(rx.try_recv() == Err(mpsc::TryRecvError::Empty));
