@@ -5,9 +5,7 @@
 - Cargo fmt:
   - group_imports?
 - Cargo audit.
-- In ping_sender.rs and in ping_receiver.rs there is potential to raise the test coverage without (much) effort.
-- Reevaluate our tests/test coverage/design.
-- Go over all TODOs in code and resolve or delete.
+- Fix allow(clippy::missing_errors_doc).
 - Can we have coverage of the extern c code?
 - Are timeouts handled corretly everywhere?
 - Instant::now(): apply dependency inversion and mock it in tests.
@@ -17,7 +15,9 @@
 
 ## done
 
+- In ping_sender.rs and in ping_receiver.rs raise test coverage.
 - The timeout time of the socket should be configurable.
+- After adding TTL, reevaluate our tests/test coverage/design.
 - The count in PingRunner does not seem to work. (Try the cli example.)
 - TTL
 - Cleanup PingError.
