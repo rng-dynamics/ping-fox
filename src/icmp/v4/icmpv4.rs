@@ -75,7 +75,7 @@ pub(crate) fn new_icmpv4_package(
 ) -> Option<MutableEchoRequestPacketV4<'static>> {
     let buf = vec![0u8; EchoRequestPacketV4::minimum_packet_size() + payload.len()];
     let mut package = MutableEchoRequestPacketV4::owned(buf)?;
-    package.set_sequence_number(sequence_number.0);
+    package.set_sequence_number(sequence_number.into());
     package.set_identifier(0);
     package.set_icmp_type(IcmpTypes::EchoRequest);
     package.set_payload(payload);
@@ -100,7 +100,7 @@ mod tests {
         let icmpv4 = IcmpV4::new(socket_mock_clone);
 
         let addr = Ipv4Addr::new(127, 0, 0, 1);
-        let sequence_number = SequenceNumber(1);
+        let sequence_number = SequenceNumber::start_value();
         let result = icmpv4.send_one_ping(addr, sequence_number);
 
         assert!(result.is_ok());

@@ -1,22 +1,23 @@
+use crate::icmp::v4::IcmpV4;
+use crate::icmp::v4::TSocket;
 use crate::ping_data_buffer::PingDataBuffer;
 use crate::records::PingReceiveRecord;
-use crate::IcmpV4;
 use crate::PingReceive;
 use crate::PingResult;
 use crate::PingSentToken;
 use std::sync::Arc;
 
-pub(crate) struct PingReceiver<S> {
+pub(crate) struct PingReceiverDetails<S> {
     icmpv4: Arc<IcmpV4<S>>,
     ping_data_buffer: PingDataBuffer,
 }
 
-impl<S> PingReceiver<S>
+impl<S> PingReceiverDetails<S>
 where
-    S: crate::icmp::v4::TSocket + 'static,
+    S: TSocket + 'static,
 {
     pub(crate) fn new(icmpv4: Arc<IcmpV4<S>>, ping_data_buffer: PingDataBuffer) -> Self {
-        PingReceiver { icmpv4, ping_data_buffer }
+        PingReceiverDetails { icmpv4, ping_data_buffer }
     }
 
     #[allow(clippy::needless_pass_by_value)]
@@ -66,7 +67,7 @@ mod tests {
         let icmpv4 = Arc::new(IcmpV4::new(socket));
         let (_tx, rx) = ping_send_record_channel(1);
         let ping_data_buffer = PingDataBuffer::new(rx);
-        let ping_receiver = PingReceiver::new(icmpv4, ping_data_buffer);
+        let ping_receiver = PingReceiverDetails::new(icmpv4, ping_data_buffer);
 
         let recv_record_1 = ping_receiver.receive(PingSentToken {}).unwrap();
         let recv_record_2 = ping_receiver.receive(PingSentToken {}).unwrap();
@@ -83,7 +84,7 @@ mod tests {
         let icmpv4 = Arc::new(IcmpV4::new(socket));
         let (_tx, rx) = ping_send_record_channel(1);
         let ping_data_buffer = PingDataBuffer::new(rx);
-        let ping_receiver = PingReceiver::new(icmpv4, ping_data_buffer);
+        let ping_receiver = PingReceiverDetails::new(icmpv4, ping_data_buffer);
 
         let recv_record = ping_receiver.receive(PingSentToken {}).unwrap();
 

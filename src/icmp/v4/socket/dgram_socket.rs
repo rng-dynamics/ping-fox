@@ -84,12 +84,11 @@ mod tests {
     fn recv_from_succeeds() {
         let socket = DgramSocket::new(super::super::tests::default_timeout()).expect("error creating socket");
         let payload = [0u8; 64];
-        let package = crate::icmp::v4::icmpv4::new_icmpv4_package(SequenceNumber(0), &payload).unwrap();
+        let package = crate::icmp::v4::icmpv4::new_icmpv4_package(SequenceNumber::start_value(), &payload).unwrap();
 
         socket
             .send_to(
                 pnet_packet::Packet::packet(&package),
-                // &"8.8.8.8:7".parse::<SocketAddr>().unwrap().into(),
                 &"127.0.0.1:0".parse::<SocketAddr>().unwrap().into(),
             )
             .unwrap();

@@ -1,18 +1,24 @@
-use std::net::Ipv4Addr;
+use ping_fox::{PingFoxConfig, PingReceive, SocketType};
 use std::time::Duration;
-
+use std::{net::Ipv4Addr, sync::Once};
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
 
-use ping_fox::{PingFoxConfig, PingReceive, SocketType};
+static SETUP: Once = Once::new();
+
+fn setup() {
+    SETUP.call_once(|| {
+        let subscriber = FmtSubscriber::builder().with_max_level(Level::ERROR).finish();
+        tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+    });
+}
 
 /*
 * Note: Raw sockets work only with root privileges.
 */
 #[test]
-fn ping_localhost_with_raw_socket_succeeds() {
-    let subscriber = FmtSubscriber::builder().with_max_level(Level::TRACE).finish();
-    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+fn test_ping_to_localhost_with_raw_socket() {
+    setup();
 
     let timeout = Duration::from_secs(1);
     let config =

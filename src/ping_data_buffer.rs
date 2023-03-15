@@ -11,7 +11,6 @@ use std::time::Instant;
 
 pub(crate) struct PingDataBuffer {
     ping_send_record_rx: PingSendRecordReceiver,
-
     send_records: HashMap<(SequenceNumber, IpAddr), (usize, Instant)>,
 }
 
