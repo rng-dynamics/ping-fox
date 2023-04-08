@@ -66,8 +66,12 @@ struct Args {
     count: u16,
 
     #[argh(positional)]
+    /// IP address
+    first_address: String,
+
+    #[argh(positional)]
     /// IP addresses
-    addresses: Vec<String>,
+    more_addresses: Vec<String>,
 }
 
 fn main() -> Result<(), GenericError> {
@@ -78,8 +82,8 @@ fn main() -> Result<(), GenericError> {
 
     let args: Args = argh::from_env();
 
-    let mut addresses = Vec::<Ipv4Addr>::with_capacity(args.addresses.len());
-    for address in args.addresses {
+    let mut addresses: Vec<Ipv4Addr> = vec![args.first_address.parse::<Ipv4Addr>()?];
+    for address in args.more_addresses {
         addresses.push(address.parse::<Ipv4Addr>()?);
     }
 
