@@ -1,5 +1,5 @@
 use super::TSocket;
-use crate::icmp::v4::Ttl;
+use crate::details::icmp::v4::Ttl;
 use socket2::{Domain, Protocol, Type};
 use std::{io, os::unix::prelude::AsRawFd, time::Duration};
 
@@ -75,7 +75,7 @@ unsafe fn str_from_null_terminated_utf8(s: &[u8]) -> &str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::icmp::v4::SequenceNumber;
+    use crate::details::icmp::v4::SequenceNumber;
     use std::net::SocketAddr;
 
     const BUFFER_LEN: usize = 256;
@@ -84,7 +84,7 @@ mod tests {
     fn recv_from_succeeds() {
         let socket = DgramSocket::new(super::super::tests::default_timeout()).expect("error creating socket");
         let payload = [0u8; 64];
-        let package = crate::icmp::v4::icmpv4::new_icmpv4_package(SequenceNumber::start_value(), &payload).unwrap();
+        let package = crate::details::icmp::v4::icmpv4::new_icmpv4_package(SequenceNumber::start_value(), &payload).unwrap();
 
         socket
             .send_to(

@@ -1,4 +1,4 @@
-use crate::{icmp::v4::Ttl, SocketType};
+use crate::{details::icmp::v4::Ttl, SocketType};
 use std::{io, time::Duration};
 
 use super::{DgramSocket, RawSocket};

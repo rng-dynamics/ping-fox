@@ -1,4 +1,4 @@
-use crate::icmp::v4::{SequenceNumber, Ttl};
+use crate::details::icmp::v4::{SequenceNumber, Ttl};
 use std::time::Instant;
 use std::{net::IpAddr, sync::mpsc};
 

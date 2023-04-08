@@ -1,5 +1,5 @@
 use super::TSocket;
-use crate::icmp::v4::Ttl;
+use crate::details::icmp::v4::Ttl;
 use pnet_packet::{ipv4::Ipv4Packet, Packet};
 use socket2::{Domain, Protocol, Type};
 use std::{io, time::Duration};

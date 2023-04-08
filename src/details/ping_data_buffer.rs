@@ -1,10 +1,10 @@
-use crate::icmp::v4::SequenceNumber;
-use crate::ping_error::PingError;
-use crate::records::PingReceiveRecordData;
-use crate::records::PingSendRecord;
-use crate::records::PingSendRecordReceiver;
+use crate::details::icmp::v4::SequenceNumber;
+use crate::details::ping_error::PingError;
+use crate::details::records::PingReceiveRecordData;
+use crate::details::records::PingSendRecord;
+use crate::details::records::PingSendRecordReceiver;
+use crate::details::PingResult;
 use crate::PingReceiveData;
-use crate::PingResult;
 use std::collections::HashMap;
 use std::net::IpAddr;
 use std::time::Instant;

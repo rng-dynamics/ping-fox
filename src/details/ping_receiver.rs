@@ -1,23 +1,23 @@
-use crate::icmp::v4::IcmpV4;
-use crate::icmp::v4::TSocket;
-use crate::ping_data_buffer::PingDataBuffer;
-use crate::records::PingReceiveRecord;
+use crate::details::icmp::v4::IcmpV4;
+use crate::details::icmp::v4::TSocket;
+use crate::details::ping_data_buffer::PingDataBuffer;
+use crate::details::records::PingReceiveRecord;
+use crate::details::PingResult;
 use crate::PingReceive;
-use crate::PingResult;
 use crate::PingSentToken;
 use std::sync::Arc;
 
-pub(crate) struct PingReceiverDetails<S> {
+pub(crate) struct PingReceiver<S> {
     icmpv4: Arc<IcmpV4<S>>,
     ping_data_buffer: PingDataBuffer,
 }
 
-impl<S> PingReceiverDetails<S>
+impl<S> PingReceiver<S>
 where
     S: TSocket + 'static,
 {
     pub(crate) fn new(icmpv4: Arc<IcmpV4<S>>, ping_data_buffer: PingDataBuffer) -> Self {
-        PingReceiverDetails { icmpv4, ping_data_buffer }
+        PingReceiver { icmpv4, ping_data_buffer }
     }
 
     #[allow(clippy::needless_pass_by_value)]
@@ -55,11 +55,11 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::icmp::v4::tests::OnReceive;
-    use crate::icmp::v4::tests::OnSend;
-    use crate::icmp::v4::tests::SocketMock;
-    use crate::records::ping_send_record_channel;
-    use crate::records::PingReceiveRecord;
+    use crate::details::icmp::v4::tests::OnReceive;
+    use crate::details::icmp::v4::tests::OnSend;
+    use crate::details::icmp::v4::tests::SocketMock;
+    use crate::details::records::ping_send_record_channel;
+    use crate::details::records::PingReceiveRecord;
 
     #[test]
     fn receive_ping_packages_success() {
@@ -67,7 +67,7 @@ mod tests {
         let icmpv4 = Arc::new(IcmpV4::new(socket));
         let (_tx, rx) = ping_send_record_channel(1);
         let ping_data_buffer = PingDataBuffer::new(rx);
-        let ping_receiver = PingReceiverDetails::new(icmpv4, ping_data_buffer);
+        let ping_receiver = PingReceiver::new(icmpv4, ping_data_buffer);
 
         let recv_record_1 = ping_receiver.receive(PingSentToken {}).unwrap();
         let recv_record_2 = ping_receiver.receive(PingSentToken {}).unwrap();
@@ -84,7 +84,7 @@ mod tests {
         let icmpv4 = Arc::new(IcmpV4::new(socket));
         let (_tx, rx) = ping_send_record_channel(1);
         let ping_data_buffer = PingDataBuffer::new(rx);
-        let ping_receiver = PingReceiverDetails::new(icmpv4, ping_data_buffer);
+        let ping_receiver = PingReceiver::new(icmpv4, ping_data_buffer);
 
         let recv_record = ping_receiver.receive(PingSentToken {}).unwrap();
 

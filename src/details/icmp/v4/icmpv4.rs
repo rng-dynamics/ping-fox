@@ -1,7 +1,7 @@
 use super::TSocket;
-use crate::icmp::v4::SequenceNumber;
-use crate::records::PingReceiveRecordData;
-use crate::PingError;
+use crate::details::icmp::v4::SequenceNumber;
+use crate::details::records::PingReceiveRecordData;
+use crate::details::PingError;
 use pnet_packet::icmp::{
     echo_reply::EchoReplyPacket,
     echo_request::{EchoRequestPacket as EchoRequestPacketV4, MutableEchoRequestPacket as MutableEchoRequestPacketV4},
@@ -89,9 +89,9 @@ pub(crate) fn new_icmpv4_package(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::icmp::v4::tests::OnReceive;
-    use crate::icmp::v4::tests::OnSend;
-    use crate::icmp::v4::tests::SocketMock;
+    use crate::details::icmp::v4::tests::OnReceive;
+    use crate::details::icmp::v4::tests::OnSend;
+    use crate::details::icmp::v4::tests::SocketMock;
 
     #[test]
     fn test_send_one_ping() {
