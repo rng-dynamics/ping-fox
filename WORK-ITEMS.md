@@ -12,7 +12,6 @@
 - What should happen if we receive an unexpected message (e.g., a duplicate)?
 - Should we test RawSocket::recv_from? Unit test? Can we test Raw socket also in an integration test elegantly?
 - More badges wirh shields.io?
-- How would the code look like if we would refactor towards more free functions instead of methods?
 
 ## done
 
