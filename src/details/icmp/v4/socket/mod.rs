@@ -58,10 +58,6 @@ pub(crate) mod tests {
     use pnet_packet::Packet;
     use pnet_packet::PacketSize;
 
-    pub(crate) fn default_timeout() -> Duration {
-        Duration::from_secs(1)
-    }
-
     #[derive(Clone, Copy, PartialEq, Eq)]
     pub(crate) enum OnSend {
         ReturnErr,
