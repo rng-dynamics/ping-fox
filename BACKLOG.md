@@ -1,6 +1,8 @@
-## OPEN WORK-ITEMS
+## OPEN
 
 - Add content to README.md.
+- Add doc tests. Add them to README.md
+- Start SemVer and a Changelog. Add a section 'Versioning' to README.md
 - Size of payload should be configurable.
 - Cargo fmt:
   - group_imports?
