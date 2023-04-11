@@ -1,4 +1,6 @@
-# Template: https://gist.github.com/PurpleBooth/109311bb0361f32d87a2
+<!--
+Template: https://gist.github.com/PurpleBooth/109311bb0361f32d87a2
+-->
 
 # ping-fox
 ![GitHub Workflow Status (with branch)](https://img.shields.io/github/actions/workflow/status/rng-dynamics/ping-fox/rust.yml?branch=main)
