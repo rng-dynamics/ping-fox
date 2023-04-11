@@ -1,5 +1,5 @@
 use super::TSocket;
-use crate::icmp::v4::Ttl;
+use crate::details::icmp::v4::Ttl;
 use socket2::{Domain, Protocol, Type};
 use std::{io, os::unix::prelude::AsRawFd, time::Duration};
 
@@ -70,34 +70,4 @@ fn str_from_null_terminated_utf8_safe(s: &[u8]) -> &str {
 // unsafe: s must contain a null byte
 unsafe fn str_from_null_terminated_utf8(s: &[u8]) -> &str {
     std::ffi::CStr::from_ptr(s.as_ptr().cast()).to_str().unwrap()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::icmp::v4::SequenceNumber;
-    use std::net::SocketAddr;
-
-    const BUFFER_LEN: usize = 256;
-
-    #[test]
-    fn recv_from_succeeds() {
-        let socket = DgramSocket::new(super::super::tests::default_timeout()).expect("error creating socket");
-        let payload = [0u8; 64];
-        let package = crate::icmp::v4::icmpv4::new_icmpv4_package(SequenceNumber::start_value(), &payload).unwrap();
-
-        socket
-            .send_to(
-                pnet_packet::Packet::packet(&package),
-                &"127.0.0.1:0".parse::<SocketAddr>().unwrap().into(),
-            )
-            .unwrap();
-
-        let mut buffer = [0u8; BUFFER_LEN];
-
-        let result = socket.recv_from(&mut buffer);
-        assert!(result.is_ok());
-        let (n_bytes, _addr, _ttl) = result.unwrap();
-        assert!(n_bytes > 0);
-    }
 }

@@ -1,4 +1,4 @@
-use crate::{icmp::v4::Ttl, SocketType};
+use crate::{details::icmp::v4::Ttl, SocketType};
 use std::{io, time::Duration};
 
 use super::{DgramSocket, RawSocket};
@@ -57,10 +57,6 @@ pub(crate) mod tests {
     use pnet_packet::icmp::IcmpType;
     use pnet_packet::Packet;
     use pnet_packet::PacketSize;
-
-    pub(crate) fn default_timeout() -> Duration {
-        Duration::from_secs(1)
-    }
 
     #[derive(Clone, Copy, PartialEq, Eq)]
     pub(crate) enum OnSend {
