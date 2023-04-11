@@ -73,7 +73,6 @@ There are examples in the [example folder](examples/).
 
 - `cargo run --lib` will run the unit tests.
 - We can run unit and integration tests with `cargo test`, but it will need elevated privileges for some of the tests using a raw socket. If we do not have privileges, some tests will fail.
-- Y
 
 ## Built With
 
