@@ -69,5 +69,10 @@ mod tests {
         let ping_response = ping_receiver.receive_ping(token);
 
         assert!(ping_response.is_ok());
+
+        let token = ping_sender.send_to(ip).unwrap();
+        let ping_response = ping_receiver.receive_ping(token);
+
+        assert!(ping_response.is_ok());
     }
 }
