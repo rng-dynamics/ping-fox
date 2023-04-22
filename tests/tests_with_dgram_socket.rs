@@ -23,13 +23,12 @@ fn test_ping_to_localhost_with_dgram_socket() {
     let localhost = Ipv4Addr::new(127, 0, 0, 1);
     let timeout = Duration::from_secs(1);
 
-    let config = PingFoxConfig { ips: &[localhost], timeout, channel_size: 1, socket_type: SocketType::DGRAM };
+    let config = PingFoxConfig { timeout, channel_size: 1, socket_type: SocketType::DGRAM };
 
     let (mut ping_sender, mut ping_receiver) = ping_fox::create(&config).unwrap();
-    let mut tokens = ping_sender.send_ping_to_each_address().unwrap();
-    let token1 = tokens.pop().expect("PingSentToken missing");
+    let token = ping_sender.send_to(localhost).unwrap();
 
-    if let PingReceive::Data(receive_data) = ping_receiver.receive_ping(token1).unwrap() {
+    if let PingReceive::Data(receive_data) = ping_receiver.receive(token).unwrap() {
         assert_eq!(localhost, receive_data.ip_addr);
         ma::assert_gt!(receive_data.ping_duration, Duration::from_secs(0));
     } else {
@@ -47,15 +46,13 @@ fn test_ping_to_multiple_addresses_on_network_with_dgram_socket() {
     let ip_iana_com = Ipv4Addr::new(192, 0, 43, 8);
     let timeout = Duration::from_secs(1);
 
-    let config =
-        PingFoxConfig { ips: &[ip_example_com, ip_iana_com], timeout, channel_size: 2, socket_type: SocketType::DGRAM };
+    let config = PingFoxConfig { timeout, channel_size: 2, socket_type: SocketType::DGRAM };
 
     let (mut ping_sender, mut ping_receiver) = ping_fox::create(&config).unwrap();
-    let mut tokens = ping_sender.send_ping_to_each_address().unwrap();
-    let token1 = tokens.pop().expect("PingSentToken missing");
-    let token2 = tokens.pop().expect("PingSentToken missing");
+    let token1 = ping_sender.send_to(ip_example_com).unwrap();
+    let token2 = ping_sender.send_to(ip_iana_com).unwrap();
 
-    if let PingReceive::Data(receive_data_1) = ping_receiver.receive_ping(token1).unwrap() {
+    if let PingReceive::Data(receive_data_1) = ping_receiver.receive(token1).unwrap() {
         let ip_1_match_1 = receive_data_1.ip_addr == ip_example_com;
         let ip_1_match_2 = receive_data_1.ip_addr == ip_iana_com;
         assert!(ip_1_match_1 || ip_1_match_2);
@@ -64,7 +61,7 @@ fn test_ping_to_multiple_addresses_on_network_with_dgram_socket() {
         panic!("ping receiver did not return expected data");
     }
 
-    if let PingReceive::Data(receive_data_2) = ping_receiver.receive_ping(token2).unwrap() {
+    if let PingReceive::Data(receive_data_2) = ping_receiver.receive(token2).unwrap() {
         let ip_2_match_1 = receive_data_2.ip_addr == ip_example_com;
         let ip_2_match_2 = receive_data_2.ip_addr == ip_iana_com;
         assert!(ip_2_match_1 || ip_2_match_2);

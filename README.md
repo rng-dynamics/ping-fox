@@ -10,7 +10,13 @@ A Rust ping (ICMP) library without the need for elevated privileges.
 
 ## Getting Started
 
-Simple usage:
+
+In ping-fox a `PingSentToken` represents an evidence that a ping message has been sent.
+Each call to `PingSender::send_to` returns a `PingSentToken` which can be used to call `PingReceiver::recieve`.
+This makes sure that `PingSender::recieve` is never called without a previous call to `PingSender::send_to`.
+
+
+The following illustrates the simple usage of ping-fox.
 
 ```
 # Cargo.toml
@@ -23,29 +29,29 @@ ping-fox = { git = "https://github.com/rng-dynamics/ping-fox.git" }
 ``` rust
 // .rs file
 
-use ping_fox::{PingFoxConfig, PingReceive, PingReceiveData, SocketType};
+use ping_fox::{PingFoxConfig, PingReceive, PingReceiveData, PingSentToken, SocketType};
 use std::net::Ipv4Addr;
 use std::time::Duration;
 
-let addresses = vec!["127.0.0.1".parse::<Ipv4Addr>()?];
-let timeout = Duration::from_secs(1);
-
-// Use `SocketType::DGRAM` in order to avoid the need for elevated privileges.
+// ### Configure the library settings:
+// - `socket_type` can be `SocketType::RAW` or `SocketType::DGRAM`.
+// - Use `SocketType::DGRAM` to avoid the need for elevated privileges.
 let config = PingFoxConfig {
-    ips: &addresses,
-    timeout,
-    channel_size: 1,
     socket_type: SocketType::DGRAM,
+    timeout: Duration::from_secs(1),
+    channel_size: 1,
 };
 
-let (mut ping_sender, mut ping_receiver) = ping_fox::create(&config)?;
+// ### Create a sender and receiver ends of ping-fox.
+let (mut ping_sender, mut ping_receiver) = ping_fox::create(&config).unwrap();
 
-// Sending pings returns a vector of tokens which we use in order to call `receive_ping`.
-let mut tokens = ping_sender.send_ping_to_each_address()?;
-let token = tokens.pop().expect("logic error: vec empty");
+// ### Call `PingSender::send_to`
+let token: PingSentToken = ping_sender
+    .send_to("127.0.0.1".parse::<Ipv4Addr>().unwrap())
+    .unwrap();
 
-// We pass the token obtained from `send_pint_to_each_address` to the receive call.
-let ping_response = ping_receiver.receive_ping(token)?;
+// ### Use the PingSentToken to call `PingReceiver::receive`.
+let ping_response = ping_receiver.receive(token).unwrap();
 
 match ping_response {
     PingReceive::Data(PingReceiveData {
@@ -55,9 +61,11 @@ match ping_response {
         sequence_number,
         ping_duration,
     }) => {
-        println!("{package_size} bytes from {ip_addr}: \
-                  icmp_seq={sequence_number} ttl={ttl} \
-                  time={ping_duration:?}",);
+        println!(
+            "{package_size} bytes from {ip_addr}: \
+              icmp_seq={sequence_number} ttl={ttl} \
+              time={ping_duration:?}",
+        );
     }
     PingReceive::Timeout => {
         println!("timeout");
@@ -67,7 +75,7 @@ match ping_response {
 
 ## Examples
 
-There are examples in the [example folder](examples/).
+There are some examples in the [example folder](examples/).
 
 ## Running the tests
 

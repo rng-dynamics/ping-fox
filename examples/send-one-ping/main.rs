@@ -41,15 +41,14 @@ fn main() -> Result<(), GenericError> {
 
     let args: Args = argh::from_env();
 
-    let addresses = vec![args.address.parse::<Ipv4Addr>()?];
+    let address = args.address.parse::<Ipv4Addr>()?;
     let timeout = Duration::from_secs(1);
 
-    let config = PingFoxConfig { ips: &addresses, timeout, channel_size: 1, socket_type: SocketType::DGRAM };
+    let config = PingFoxConfig { timeout, channel_size: 1, socket_type: SocketType::DGRAM };
 
     let (mut ping_sender, mut ping_receiver) = ping_fox::create(&config)?;
-    let mut tokens = ping_sender.send_ping_to_each_address()?;
-    let token = tokens.pop().expect("logic error: vec empty");
-    let ping_response = ping_receiver.receive_ping(token);
+    let token = ping_sender.send_to(address)?;
+    let ping_response = ping_receiver.receive(token);
     if let PingReceive::Data(PingReceiveData { package_size, ip_addr, ttl, sequence_number, ping_duration }) = ping_response?
     {
         println!("{package_size} bytes from {ip_addr}: icmp_seq={sequence_number} ttl={ttl} time={ping_duration:?}",);
