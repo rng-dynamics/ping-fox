@@ -53,6 +53,7 @@ let token: PingSentToken = ping_sender
 // ### Use the PingSentToken to call `PingReceiver::receive`.
 let ping_response = ping_receiver.receive(token).unwrap();
 
+// ### Read the ping result.
 match ping_response {
     PingReceive::Data(PingReceiveData {
         package_size,
