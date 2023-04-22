@@ -6,9 +6,9 @@ use std::time::Duration;
 
 #[allow(clippy::module_name_repetitions)]
 pub struct PingFoxConfig {
+    pub socket_type: SocketType,
     pub timeout: Duration,
     pub channel_size: usize,
-    pub socket_type: SocketType,
 }
 
 #[derive(Clone, Copy)]
@@ -29,8 +29,8 @@ impl PingSender {
 }
 pub struct PingReceiver(details::PingReceiver<details::icmp::v4::Socket>);
 impl PingReceiver {
-    pub fn receive_ping(&mut self, token: PingSentToken) -> details::PingResult<PingReceive> {
-        self.0.receive_ping(token)
+    pub fn receive(&mut self, token: PingSentToken) -> details::PingResult<PingReceive> {
+        self.0.receive(token)
     }
 }
 
@@ -66,12 +66,12 @@ mod tests {
 
         let (mut ping_sender, mut ping_receiver) = super::create_with_socket(socket, channel_size);
         let token = ping_sender.send_to(ip).unwrap();
-        let ping_response = ping_receiver.receive_ping(token);
+        let ping_response = ping_receiver.receive(token);
 
         assert!(ping_response.is_ok());
 
         let token = ping_sender.send_to(ip).unwrap();
-        let ping_response = ping_receiver.receive_ping(token);
+        let ping_response = ping_receiver.receive(token);
 
         assert!(ping_response.is_ok());
     }

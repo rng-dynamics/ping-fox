@@ -123,7 +123,7 @@ fn main() -> Result<(), GenericError> {
                 break 'outer;
             }
         };
-        let ping_output = ping_receiver.receive_ping(token);
+        let ping_output = ping_receiver.receive(token);
         match ping_output {
             Ok(PingReceive::Data(PingReceiveData { package_size, ip_addr, ttl, sequence_number, ping_duration })) => {
                 println!("{package_size} bytes from {ip_addr}: icmp_seq={sequence_number} ttl={ttl} time={ping_duration:?}",);

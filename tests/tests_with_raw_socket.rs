@@ -27,7 +27,7 @@ fn test_ping_to_localhost_with_raw_socket() {
 
     let token = ping_sender.send_to(Ipv4Addr::new(127, 0, 0, 1)).unwrap();
 
-    let ping_response = ping_receiver.receive_ping(token);
+    let ping_response = ping_receiver.receive(token);
 
     assert!(ping_response.is_ok());
     assert!(matches!(ping_response.unwrap(), PingReceive::Data(_)));

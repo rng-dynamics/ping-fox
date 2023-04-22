@@ -21,7 +21,7 @@ where
     }
 
     #[allow(clippy::needless_pass_by_value)]
-    fn receive(&self, token: PingSentToken) -> PingResult<PingReceiveRecord> {
+    fn receive_aux(&self, token: PingSentToken) -> PingResult<PingReceiveRecord> {
         let _ = token;
         // (2) Receive on socket.
         let recv_echo_result = self.icmpv4.try_receive();
@@ -39,8 +39,8 @@ where
         }
     }
 
-    pub(crate) fn receive_ping(&mut self, token: PingSentToken) -> PingResult<PingReceive> {
-        match self.receive(token) {
+    pub(crate) fn receive(&mut self, token: PingSentToken) -> PingResult<PingReceive> {
+        match self.receive_aux(token) {
             Err(e) => Err(e),
             Ok(PingReceiveRecord::Timeout) => Ok(PingReceive::Timeout),
             Ok(PingReceiveRecord::Data(data)) => {

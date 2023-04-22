@@ -48,7 +48,7 @@ fn main() -> Result<(), GenericError> {
 
     let (mut ping_sender, mut ping_receiver) = ping_fox::create(&config)?;
     let token = ping_sender.send_to(address)?;
-    let ping_response = ping_receiver.receive_ping(token);
+    let ping_response = ping_receiver.receive(token);
     if let PingReceive::Data(PingReceiveData { package_size, ip_addr, ttl, sequence_number, ping_duration }) = ping_response?
     {
         println!("{package_size} bytes from {ip_addr}: icmp_seq={sequence_number} ttl={ttl} time={ping_duration:?}",);
