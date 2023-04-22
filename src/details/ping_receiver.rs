@@ -69,9 +69,9 @@ mod tests {
         let ping_data_buffer = PingDataBuffer::new(rx);
         let ping_receiver = PingReceiver::new(icmpv4, ping_data_buffer);
 
-        let recv_record_1 = ping_receiver.receive(PingSentToken {}).unwrap();
-        let recv_record_2 = ping_receiver.receive(PingSentToken {}).unwrap();
-        let recv_record_3 = ping_receiver.receive(PingSentToken {}).unwrap();
+        let recv_record_1 = ping_receiver.receive_aux(PingSentToken {}).unwrap();
+        let recv_record_2 = ping_receiver.receive_aux(PingSentToken {}).unwrap();
+        let recv_record_3 = ping_receiver.receive_aux(PingSentToken {}).unwrap();
 
         assert!(matches!(recv_record_1, PingReceiveRecord::Data(_)));
         assert!(matches!(recv_record_2, PingReceiveRecord::Data(_)));
@@ -86,7 +86,7 @@ mod tests {
         let ping_data_buffer = PingDataBuffer::new(rx);
         let ping_receiver = PingReceiver::new(icmpv4, ping_data_buffer);
 
-        let recv_record = ping_receiver.receive(PingSentToken {}).unwrap();
+        let recv_record = ping_receiver.receive_aux(PingSentToken {}).unwrap();
 
         assert!(matches!(recv_record, PingReceiveRecord::Timeout));
     }
