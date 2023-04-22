@@ -6,10 +6,11 @@ Template: https://gist.github.com/PurpleBooth/109311bb0361f32d87a2
 ![GitHub Workflow Status (with branch)](https://img.shields.io/github/actions/workflow/status/rng-dynamics/ping-fox/rust.yml?branch=main)
 [![Coveralls branch](https://img.shields.io/coverallsCoverage/github/rng-dynamics/ping-fox?branch=main)](https://coveralls.io/github/rng-dynamics/ping-fox)
 
-A Rust ping (ICMP) library without the need for elevated privileges.
+A ping (ICMP) library.
+
+Ping-fox is simple to use and it provides all features without elevated privileges.
 
 ## Getting Started
-
 
 In ping-fox a `PingSentToken` represents an evidence that a ping message has been sent.
 Each call to `PingSender::send_to` returns a `PingSentToken` which can be used to call `PingReceiver::recieve`.
