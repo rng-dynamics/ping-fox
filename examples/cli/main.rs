@@ -87,56 +87,57 @@ fn main() -> Result<(), GenericError> {
         addresses.push(address.parse::<Ipv4Addr>()?);
     }
 
-    let config =
-        PingFoxConfig { ips: &addresses, timeout: Duration::from_secs(1), channel_size: 8, socket_type: SocketType::DGRAM };
+    let config = PingFoxConfig { timeout: Duration::from_secs(1), channel_size: 8, socket_type: SocketType::DGRAM };
 
     let (mut ping_sender, mut ping_receiver) = ping_fox::create(&config)?;
     let (tx, rx) = std::sync::mpsc::sync_channel(8);
     let stop_condition_1 = StopCondition::new();
     let stop_condition_2 = stop_condition_1.clone();
 
-    let thrd2 = std::thread::spawn(move || loop {
-        let ping_result = ping_sender.send_ping_to_each_address();
-        match ping_result {
-            Err(e) => {
-                println!("ERROR: {:?}", e);
-                break;
-            }
-            Ok(tokens) => {
-                let send_tokens_result = tx.send(tokens);
-                if let Err(e) = send_tokens_result {
+    let thrd2 = std::thread::spawn(move || 'outer: loop {
+        for address in &addresses {
+            match ping_sender.send_to(*address) {
+                Ok(token) => {
+                    if let Err(e) = tx.send(token) {
+                        println!("ERROR: {:?}", e);
+                    }
+                }
+                Err(e) => {
                     println!("ERROR: {:?}", e);
+                    break 'outer;
                 }
             }
         }
         let should_stop: bool = stop_condition_1.wait_timeout(Duration::from_secs(1));
         if should_stop {
-            break;
+            break 'outer;
         }
     });
 
     let mut i = 0;
     'outer: loop {
-        let ping_sent_tokens = rx.recv()?;
-        for token in ping_sent_tokens {
-            let ping_output = ping_receiver.receive_ping(token);
-            match ping_output {
-                Ok(PingReceive::Data(PingReceiveData { package_size, ip_addr, ttl, sequence_number, ping_duration })) => {
-                    println!(
-                        "{package_size} bytes from {ip_addr}: icmp_seq={sequence_number} ttl={ttl} time={ping_duration:?}",
-                    );
-                    i += 1;
-                }
-                Ok(PingReceive::Timeout) => {
-                    println!("receive timed out");
-                }
-                Err(e) => {
-                    println!("ERROR: {:?}", e);
-                }
-            }
-            if i >= args.count {
+        let token = match rx.recv() {
+            Ok(token) => token,
+            Err(e) => {
+                println!("ERROR: {:?}", e);
                 break 'outer;
             }
+        };
+        let ping_output = ping_receiver.receive_ping(token);
+        match ping_output {
+            Ok(PingReceive::Data(PingReceiveData { package_size, ip_addr, ttl, sequence_number, ping_duration })) => {
+                println!("{package_size} bytes from {ip_addr}: icmp_seq={sequence_number} ttl={ttl} time={ping_duration:?}",);
+                i += 1;
+            }
+            Ok(PingReceive::Timeout) => {
+                println!("receive timed out");
+            }
+            Err(e) => {
+                println!("ERROR: {:?}", e);
+            }
+        }
+        if i >= args.count {
+            break 'outer;
         }
     }
     stop_condition_2.set_should_stop();

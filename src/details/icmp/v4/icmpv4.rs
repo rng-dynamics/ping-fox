@@ -31,7 +31,7 @@ where
         IcmpV4 { payload, socket }
     }
 
-    pub(crate) fn send_one_ping(
+    pub(crate) fn send_to(
         &self,
         ipv4: Ipv4Addr,
         sequence_number: SequenceNumber,
@@ -42,8 +42,10 @@ where
         let package = new_icmpv4_package(sequence_number, &self.payload)
             .ok_or(PingError { message: "could not create ICMP package".to_owned() })?;
 
+        let packet = pnet_packet::Packet::packet(&package);
+        let addr2: socket2::SockAddr = addr.into();
         let start_time: Instant = Instant::now();
-        self.socket.send_to(pnet_packet::Packet::packet(&package), &addr.into())?;
+        self.socket.send_to(packet, &addr2)?;
 
         Ok((PAYLOAD_SIZE, ip_addr, sequence_number, start_time))
     }
@@ -101,7 +103,7 @@ mod tests {
 
         let addr = Ipv4Addr::new(127, 0, 0, 1);
         let sequence_number = SequenceNumber::start_value();
-        let result = icmpv4.send_one_ping(addr, sequence_number);
+        let result = icmpv4.send_to(addr, sequence_number);
 
         assert!(result.is_ok());
         socket_mock

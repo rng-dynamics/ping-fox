@@ -21,13 +21,11 @@ fn test_ping_to_localhost_with_raw_socket() {
     setup();
 
     let timeout = Duration::from_secs(1);
-    let config =
-        PingFoxConfig { ips: &[Ipv4Addr::new(127, 0, 0, 1)], timeout, channel_size: 2, socket_type: SocketType::RAW };
+    let config = PingFoxConfig { timeout, channel_size: 2, socket_type: SocketType::RAW };
 
     let (mut ping_sender, mut ping_receiver) = ping_fox::create(&config).unwrap();
 
-    let mut tokens = ping_sender.send_ping_to_each_address().unwrap();
-    let token = tokens.pop().expect("logic error: vec empty");
+    let token = ping_sender.send_to(Ipv4Addr::new(127, 0, 0, 1)).unwrap();
 
     let ping_response = ping_receiver.receive_ping(token);
 
