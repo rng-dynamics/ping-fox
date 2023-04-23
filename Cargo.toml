@@ -1,6 +1,6 @@
 [package]
 name = "ping-fox"
-version = "0.0.0"
+version = "0.0.1"
 edition = "2021"
 description = "A ping (ICMP) library - simple to use and no root or setuid required."
 license = "BSD-3-Clause"
