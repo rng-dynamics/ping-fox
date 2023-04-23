@@ -61,7 +61,7 @@ jobs:
     - name: Run tests
       run: |
         cargo test --lib --verbose
-        cargo test --doc
+        cargo test --doc --verbose
 
   coverage:
     name: Measure code coverage
