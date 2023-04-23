@@ -21,7 +21,7 @@ The following example describes how to configure ping-fox and how to send and re
 # Cargo.toml
 
 [dependencies]
-ping-fox = { git = "https://github.com/rng-dynamics/ping-fox.git" }
+ping-fox = "0.1"
 
 ```
 
