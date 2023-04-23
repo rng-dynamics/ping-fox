@@ -52,8 +52,9 @@ impl PingSender {
 /// Structure used for receiving ping echo reply messages.
 pub struct PingReceiver(details::PingReceiver<details::icmp::v4::Socket>);
 impl PingReceiver {
-    /// Blocks and waits for ping echo reply message.
-    /// Returns the data from the received echo reply message or a structure representing a [`PingReceive::Timeout`].
+    /// Blocks and waits for an echo reply message.
+    /// Returns the data from the received echo reply message in [`PingReceive::Data`] or a
+    /// [`PingReceive::Timeout`] representing a timeout.
     ///
     /// # Arguments
     ///
