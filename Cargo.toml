@@ -2,6 +2,13 @@
 name = "ping-fox"
 version = "0.0.0"
 edition = "2021"
+description = "A ping (ICMP) library - simple to use and no root or setuid required."
+license = "BSD-3-Clause"
+homepage = "https://github.com/rng-dynamics/ping-fox"
+repository = "https://github.com/rng-dynamics/ping-fox"
+readme = "README.md"
+keywords = ["ping", "icmp"]
+categories = ["network-programming"]
 
 [dependencies]
 pnet_packet = "0.31"
