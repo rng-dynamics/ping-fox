@@ -15,7 +15,7 @@ Each call to `PingSender::send_to` returns a `PingSentToken` which can be used t
 This makes sure that `PingSender::recieve` is never called without a previous call to `PingSender::send_to`.
 
 
-The following example describes how to configure ping-fox, how to send an echo message and how to receive an echo reply message.
+The following example describes how to configure ping-fox and how to send and receive an echo messages and its response.
 
 ```
 # Cargo.toml

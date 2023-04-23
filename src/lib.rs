@@ -1,7 +1,7 @@
 //! A ping (ICMP) library - simple to use and no root or setuid required.
 //!
-//! The following example describes how to configure ping-fox, how to send an echo message and how
-//! to receive an echo reply message.
+//! The following example describes how to configure ping-fox and how to send and
+//! receive an echo messages and its response.
 //!
 //! ```
 //! use ping_fox::{PingFoxConfig, PingReceive, PingReceiveData, PingSentToken, SocketType};
